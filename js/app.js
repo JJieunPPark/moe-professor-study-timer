@@ -181,6 +181,7 @@ let activeLive2DRenderTargetId = null;
 let currentScreen = "home";
 let currentMainMode = "lobby";
 let wheelSelection = "lobby";
+let rouletteNavigationTimer = null;
 let currentQuestionMode = "general";
 let homeSceneCamera = null;
 const lastIdleLineByProfessor = {};
@@ -258,12 +259,11 @@ function initializeApp() {
   elements.enterQuestionButton?.addEventListener("click", openQuestionRoom);
   elements.enterFocusRoomButton?.addEventListener("click", openFocusRoom);
   elements.enterRecordRoomButton?.addEventListener("click", openRecordRoom);
-  elements.wheelLobbyButton?.addEventListener("click", () => setWheelSelection("lobby"));
-  elements.wheelQuestionButton?.addEventListener("click", () => setWheelSelection("question"));
+  elements.wheelLobbyButton?.addEventListener("click", () => navigateModeRoulette("lobby"));
+  elements.wheelQuestionButton?.addEventListener("click", () => navigateModeRoulette("question"));
   elements.modeWheel?.setAttribute("tabindex", "0");
   elements.modeWheel?.addEventListener("wheel", handleModeWheelScroll, { passive: false });
   elements.modeWheel?.addEventListener("keydown", handleModeWheelKeydown);
-  elements.modeEnterButton?.addEventListener("click", enterSelectedMode);
   elements.focusRoomBackButton?.addEventListener("click", closeFocusRoom);
   elements.focusRoomStartButton?.addEventListener("click", () => timer.start());
   elements.focusRoomPauseButton?.addEventListener("click", () => timer.pause());
@@ -728,6 +728,7 @@ function setWheelSelection(mode) {
   wheelSelection = mode === "question" ? "question" : "lobby";
   document.body.classList.toggle("wheel-selection-question", wheelSelection === "question");
   document.body.classList.toggle("wheel-selection-lobby", wheelSelection === "lobby");
+  document.body.style.setProperty("--mode-roulette-rotation", wheelSelection === "question" ? "180deg" : "0deg");
 
   [
     elements.wheelLobbyButton,
@@ -749,6 +750,10 @@ function handleModeWheelScroll(event) {
 }
 
 function handleModeWheelKeydown(event) {
+  if (event.target?.classList?.contains("mode-wheel-item")) {
+    return;
+  }
+
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
     enterSelectedMode();
@@ -763,10 +768,40 @@ function handleModeWheelKeydown(event) {
 
 function enterSelectedMode() {
   if (wheelSelection === "question") {
-    openQuestionRoom();
+    navigateModeRoulette("question");
     return;
   }
 
+  navigateModeRoulette("lobby");
+}
+
+function navigateModeRoulette(mode) {
+  const nextMode = mode === "question" ? "question" : "lobby";
+  clearTimeout(rouletteNavigationTimer);
+  setWheelSelection(nextMode);
+  document.body.classList.add("mode-roulette-spinning");
+
+  rouletteNavigationTimer = setTimeout(() => {
+    document.body.classList.remove("mode-roulette-spinning");
+
+    if (nextMode === "question") {
+      if (!document.body.classList.contains("focus-mode-active")) {
+        openQuestionRoom();
+      }
+      return;
+    }
+
+    if (document.body.classList.contains("focus-mode-active")) {
+      requestCloseFocusMode();
+      return;
+    }
+
+    enterLobbyModeFromWheel();
+  }, 420);
+}
+
+function enterLobbyModeFromWheel() {
+  setWheelSelection("lobby");
   setMainMode("lobby");
   if (document.body.classList.contains("focus-mode-active")) {
     closeFocusMode();

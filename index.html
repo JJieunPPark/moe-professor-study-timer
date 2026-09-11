@@ -70,14 +70,6 @@
     </nav>
 
     <section class="main-lobby">
-      <section class="mode-wheel-hud" aria-label="메인 모드 선택">
-        <div id="modeWheel" class="mode-wheel" role="group" aria-label="LOBBY와 QUESTION 모드 선택">
-          <button id="wheelLobbyButton" class="mode-wheel-item is-selected" type="button" data-mode="lobby" aria-pressed="true">LOBBY</button>
-          <button id="wheelQuestionButton" class="mode-wheel-item" type="button" data-mode="question" aria-pressed="false">QUESTION</button>
-        </div>
-        <button id="modeEnterButton" class="mode-enter-button" type="button" aria-label="선택한 모드 입장">♡</button>
-      </section>
-
       <section class="character-zone" aria-label="교수 캐릭터 로비">
         <div class="character-stage" aria-label="교수 캐릭터 표시 영역">
           <div class="stage-gradient" aria-hidden="true"></div>
@@ -204,6 +196,34 @@
       </section>
     </section>
   </main>
+
+  <section class="mode-wheel-hud" aria-label="메인 모드 선택">
+    <button id="modeEnterButton" class="mode-enter-button" type="button" aria-label="모드 룰렛 열기">♡</button>
+    <div id="modeWheel" class="mode-wheel" role="group" aria-label="LOBBY와 QUESTION 모드 선택">
+      <div class="mode-wheel-plate" aria-hidden="true">
+        <div class="mode-wheel-section mode-wheel-section-lobby"></div>
+        <div class="mode-wheel-section mode-wheel-section-question"></div>
+        <div class="mode-wheel-ring"></div>
+        <div class="mode-wheel-hub"></div>
+      </div>
+      <button id="wheelLobbyButton" class="mode-wheel-item mode-wheel-item-lobby is-selected" type="button" data-mode="lobby" aria-pressed="true" aria-label="LOBBY로 이동">
+        <svg class="mode-wheel-text" viewBox="0 0 220 220" aria-hidden="true" focusable="false">
+          <defs>
+            <path id="modeArcLobby" d="M 48 110 A 62 62 0 0 1 172 110"></path>
+          </defs>
+          <text><textPath href="#modeArcLobby" startOffset="50%" text-anchor="middle">LOBBY</textPath></text>
+        </svg>
+      </button>
+      <button id="wheelQuestionButton" class="mode-wheel-item mode-wheel-item-question" type="button" data-mode="question" aria-pressed="false" aria-label="QUESTION으로 이동">
+        <svg class="mode-wheel-text" viewBox="0 0 220 220" aria-hidden="true" focusable="false">
+          <defs>
+            <path id="modeArcQuestion" d="M 172 110 A 62 62 0 0 1 48 110"></path>
+          </defs>
+          <text><textPath href="#modeArcQuestion" startOffset="50%" text-anchor="middle">QUESTION</textPath></text>
+        </svg>
+      </button>
+    </div>
+  </section>
 
   <section id="focusMode" class="focus-mode" aria-label="질문 모드" aria-hidden="true">
     <img class="room-background-art question-background-art" data-art-slot="questionRoomBackground" alt="" aria-hidden="true">
