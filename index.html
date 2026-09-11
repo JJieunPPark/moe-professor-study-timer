@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professor Study Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/opening.css">
+  <link rel="stylesheet" href="css/infoPopups.css">
+</head>
+<body>
+  <audio id="global-bgm" src="/audio/bgm/main-theme.mp3" preload="auto" loop></audio>
+
+  <section id="bootOpening" class="boot-opening" aria-label="Professor Study System boot opening">
+    <div class="boot-opening__scanline" aria-hidden="true"></div>
+    <div class="boot-opening__flash" aria-hidden="true"></div>
+
+    <div id="bootStartPanel" class="boot-opening__start">
+      <p class="boot-opening__system">GNU GRUB  version 2.12</p>
+      <button id="bootStartButton" class="boot-opening__start-button" type="button">Boot Professor Study Linux</button>
+      <span class="boot-opening__hint">ENTER / SPACE</span>
+    </div>
+
+    <div id="bootTerminal" class="boot-opening__terminal" aria-hidden="true">
+      <div class="boot-opening__terminal-header">
+        <span>professor-study-kernel</span>
+        <span>tty0</span>
+      </div>
+      <div id="bootLog" class="boot-opening__log" aria-live="polite"></div>
+      <div id="bootPanic" class="boot-opening__panic" aria-hidden="true">
+        <strong>KERNEL PANIC</strong>
+        <span>PROFESSOR NOT FOUND</span>
+      </div>
+    </div>
+
+    <button id="bootSkipButton" class="boot-opening__skip" type="button" hidden>SKIP</button>
+  </section>
+
+  <main class="lobby-shell">
+    <nav class="top-nav" aria-label="Lobby HUD">
+      <div class="nav-left">
+        <section class="royal-progress-card" aria-label="Royal 진행도">
+          <div class="royal-progress-header">
+            <span id="royalBadge" class="royal-badge">Royal Progress</span>
+            <span id="royalProgressText" class="royal-progress-text">░░░░░░░░░░</span>
+          </div>
+          <button id="musicInfoButton" class="music-info-button" type="button" aria-label="Background music information">♪</button>
+          <div class="royal-progress-track" aria-hidden="true">
+            <div id="royalProgressFill" class="royal-progress-fill"></div>
+          </div>
+          <aside id="musicInfoPopover" class="music-info-popover" aria-hidden="true">
+            <button id="closeMusicInfoButton" class="music-info-close" type="button" aria-label="닫기">×</button>
+            <h2>Background Music</h2>
+            <p><strong>Track</strong> : Parfait</p>
+            <p><strong>Composer</strong> : EspiDev</p>
+            <p>Licensed under Creative Commons Attribution 3.0</p>
+            <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">https://creativecommons.org/licenses/by/3.0/</a>
+            <p><strong>EspiDev Channel</strong></p>
+            <a href="https://bit.ly/EspiDev" target="_blank" rel="noopener noreferrer">https://bit.ly/EspiDev</a>
+          </aside>
+        </section>
+        <button id="themeToggleButton" class="theme-button" type="button">색상 변경</button>
+        <button id="professorModeButton" class="theme-button professor-mode-button" type="button" hidden>Royal Mode 진입</button>
+      </div>
+
+      <div class="nav-right"></div>
+    </nav>
+
+    <section class="main-lobby">
+      <section class="mode-wheel-hud" aria-label="메인 모드 선택">
+        <div id="modeWheel" class="mode-wheel" role="group" aria-label="LOBBY와 QUESTION 모드 선택">
+          <button id="wheelLobbyButton" class="mode-wheel-item is-selected" type="button" data-mode="lobby" aria-pressed="true">LOBBY</button>
+          <button id="wheelQuestionButton" class="mode-wheel-item" type="button" data-mode="question" aria-pressed="false">QUESTION</button>
+        </div>
+        <button id="modeEnterButton" class="mode-enter-button" type="button" aria-label="선택한 모드 입장">♡</button>
+      </section>
+
+      <section class="character-zone" aria-label="교수 캐릭터 로비">
+        <div class="character-stage" aria-label="교수 캐릭터 표시 영역">
+          <div class="stage-gradient" aria-hidden="true"></div>
+<div class="stage-halo" aria-hidden="true"></div>
+          <div class="character-glow" aria-hidden="true"></div>
+          <div class="character-placeholder">
+            <span id="characterInitial">デ</span>
+            <strong id="characterName">시라토리 데에타</strong>
+            <small id="characterSubject">데이터베이스</small>
+          </div>
+          <div id="mascotStage" class="mascot-stage" aria-hidden="true">
+            <img id="mascotImage" class="mascot-image" alt="">
+            <div id="mascotPlaceholder" class="mascot-placeholder">
+              <span id="mascotSubject">데이터베이스</span>
+              <strong id="mascotName">시라토리 데에타</strong>
+            </div>
+          </div>
+          <div id="professorGifStage" class="professor-gif-stage">
+          <img
+            id="professorGif"
+            class="professor-gif"
+            src=""
+            alt=""
+          />
+        </div>
+          <div id="lobbyLive2DStage" class="live2d-stage live2d-lobby-stage" aria-hidden="true"></div>
+          <!-- Later: <img class="professor-character" src="..." alt="Professor character"> -->
+          <!-- Later: <video class="professor-character" src="..." autoplay loop muted></video> -->
+        </div>
+      </section>
+
+      <section class="control-zone" aria-label="공부 타이머 컨트롤">
+        <header class="app-title-card">
+          <div>
+            <p class="eyebrow">Study Lobby</p>
+            <h1>Professor Study Timer</h1>
+          </div>
+          <button id="admissionSettingsButton" class="save-button" type="button">학번 설정</button>
+        </header>
+
+        <section class="home-action-panel" aria-label="주요 모드">
+          <button id="enterQuestionButton" class="home-mode-button primary-button" type="button">
+            <span>QUESTION</span>
+            교수님께 질문하기
+          </button>
+          <button id="enterFocusRoomButton" class="home-mode-button" type="button">
+            <span>FOCUS</span>
+            집중실 입장
+          </button>
+          <button id="enterRecordRoomButton" class="home-mode-button" type="button">
+            <span>RECORD</span>
+            학습 기록
+          </button>
+        </section>
+
+        <section class="timer-card game-card" aria-labelledby="timerTitle">
+          <div class="timer-mode-row">
+            <h2 id="timerTitle">집중 시간</h2>
+            <button id="modeToggleButton" class="small-button" type="button">쉬는 시간</button>
+          </div>
+          <div id="timerDisplay" class="timer-display" aria-live="polite">25:00</div>
+          <div class="control-row">
+            <button id="startButton" class="primary-button" type="button">강의 시작</button>
+            <button id="pauseButton" type="button">잠깐 정지</button>
+            <button id="resetButton" type="button">다시 준비</button>
+          </div>
+        </section>
+
+        <section class="subject-panel game-card" aria-labelledby="subjectTitle">
+          <div class="section-heading">
+            <h2 id="subjectTitle">과목 선택</h2>
+            <p>담당 교수를 선택하세요.</p>
+          </div>
+          <select id="subjectButtons" class="subject-select" aria-label="과목 선택"></select>
+        </section>
+
+        <section class="professor-card game-card" id="professorCard" aria-label="교수 정보">
+          <div class="card-topline">
+            <span id="professorStar" class="professor-star" aria-hidden="true">★</span>
+            <span id="professorSubject" class="subject-chip">데이터베이스</span>
+          </div>
+          <h2 id="professorName">시라토리 데에타</h2>
+          <p id="professorPersonality" class="personality">꼼꼼하고 논리적</p>
+          <p id="professorQuote" class="quote">"관계부터 정리하고 JOIN합시다."</p>
+        </section>
+
+        <section class="stats-grid" aria-label="공부 통계">
+          <article class="stat-card game-card">
+            <span>오늘 완료 세션</span>
+            <strong id="todaySessions">0</strong>
+          </article>
+          <article class="stat-card game-card">
+            <span>오늘 공부 시간</span>
+            <strong id="todayMinutes">0분</strong>
+          </article>
+        </section>
+      </section>
+
+      <section class="speech-layer" aria-label="교수 대사와 질문 입력">
+        <section id="dialogueBubble" class="visual-novel-dialogue" aria-labelledby="dialogueTitle">
+          <div class="dialogue-nameplate" id="dialogueTitle">시라토리 데에타</div>
+          <p id="dialogueText">관계부터 정리하고 JOIN합시다.</p>
+          <span class="dialogue-continue-indicator" aria-hidden="true"></span>
+        </section>
+
+        <div class="bottom-command-row">
+          <button class="nav-action" type="button">업적</button>
+          <div class="bgm-control" aria-label="배경음악 설정">
+            <button id="bgmToggleButton" class="nav-action bgm-toggle-button" type="button">BGM ON</button>
+            <label class="bgm-volume-control" for="bgmVolumeSlider">
+              <span>VOL</span>
+              <input id="bgmVolumeSlider" type="range" min="0" max="100" value="25">
+            </label>
+          </div>
+          <button id="lessonArchiveButton" class="nav-action" type="button">수업 보관함</button>
+          <form id="llmForm" class="llm-form">
+            <label for="llmInput">질문 입력</label>
+            <div class="llm-input-row">
+              <input id="llmInput" type="text" placeholder="질문 입력...">
+              <button id="llmSubmitButton" type="submit">질문하기</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <section id="focusMode" class="focus-mode" aria-label="질문 모드" aria-hidden="true">
+    <img class="room-background-art question-background-art" data-art-slot="questionRoomBackground" alt="" aria-hidden="true">
+    <div id="focusProfessorGifStage" class="focus-professor-gif-stage" aria-hidden="true">
+      <img id="focusProfessorGif" class="focus-professor-gif" src="" alt="">
+    </div>
+    <button id="focusBackButton" class="focus-back-button" type="button">← 뒤로가기</button>
+
+    <div class="focus-professor-side" aria-label="집중 모드 교수">
+      <div class="focus-professor-stage">
+        <div class="focus-stage-halo" aria-hidden="true"></div>
+        <div class="focus-stage-glow" aria-hidden="true"></div>
+          <div class="focus-professor-sprite">
+          <span id="focusCharacterInitial">デ</span>
+          <strong id="focusCharacterName">시라토리 데에타</strong>
+          <small id="focusCharacterSubject">데이터베이스</small>
+        </div>
+        <div id="focusLive2DStage" class="live2d-stage live2d-focus-stage" aria-hidden="true"></div>
+        <div id="focusUnderstandingCheckHost" class="focus-understanding-check-host" aria-live="polite"></div>
+        <div id="focusNameCutin" class="focus-name-cutin" aria-label="선택된 교수 이름">
+          <strong id="focusKanjiName">白鳥 出絵太</strong>
+          <span id="focusKoreanName">시라토리 데에타</span>
+        </div>
+        <!-- TODO: Live2D, 표정 변경, TTS, 교수 애니메이션을 이 컴포넌트에 연결합니다. -->
+      </div>
+    </div>
+
+    <section class="focus-chat-side" aria-label="교수와 대화">
+      <header class="focus-chat-header">
+        <div>
+          <p class="eyebrow">Question Mode</p>
+          <h2 id="focusProfessorName">시라토리 데에타</h2>
+        </div>
+        <span id="focusSubjectChip" class="focus-subject-chip">데이터베이스</span>
+      </header>
+
+      <section id="questionModePanel" class="question-mode-panel" aria-label="질문 도움 유형">
+        <p>어떤 도움이 필요합니까?</p>
+        <div id="questionModeChoices" class="question-mode-choices"></div>
+      </section>
+
+      <div id="focusChatMessages" class="focus-chat-messages" aria-live="polite"></div>
+
+      <form id="focusChatForm" class="focus-chat-form">
+        <label for="focusChatInput">질문 입력</label>
+        <textarea id="focusChatInput" rows="1" placeholder="교수님께 질문하기..."></textarea>
+        <button id="focusChatSubmitButton" type="submit">전송</button>
+      </form>
+    </section>
+  </section>
+
+  <section id="focusRoom" class="focus-room" aria-label="집중실" aria-hidden="true">
+    <img class="room-background-art" data-art-slot="focusRoomBackground" alt="" aria-hidden="true">
+    <button id="focusRoomBackButton" class="focus-back-button" type="button">← 로비</button>
+    <div class="focus-room-layout">
+      <section class="focus-room-professor" aria-label="현재 교수">
+        <img id="focusRoomProfessorGif" class="focus-room-professor-gif" src="" alt="">
+        <div class="focus-name-cutin focus-room-name">
+          <strong id="focusRoomKanjiName">白鳥 出絵太</strong>
+          <span id="focusRoomKoreanName">시라토리 데에타</span>
+        </div>
+      </section>
+      <section class="focus-room-panel" aria-label="집중 타이머">
+        <p class="eyebrow">Focus Room</p>
+        <h2 id="focusRoomProfessorName">시라토리 데에타</h2>
+        <span id="focusRoomSubjectChip" class="focus-subject-chip">데이터베이스</span>
+        <div id="focusRoomTimerDisplay" class="focus-room-timer">25:00</div>
+        <p id="focusRoomTimerTitle" class="focus-room-mode">집중 시간</p>
+        <div class="focus-room-controls">
+          <button id="focusRoomStartButton" class="primary-button" type="button">강의 시작</button>
+          <button id="focusRoomPauseButton" type="button">잠깐 정지</button>
+          <button id="focusRoomResetButton" type="button">다시 준비</button>
+          <button id="focusRoomModeToggleButton" type="button">쉬는 시간</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="recordRoom" class="record-room" aria-label="기록실" aria-hidden="true">
+    <img class="room-background-art" data-art-slot="studentRecord" alt="" aria-hidden="true">
+    <button id="recordRoomBackButton" class="focus-back-button" type="button">← 로비</button>
+    <div class="record-room-panel">
+      <p class="eyebrow">Record Room</p>
+      <h2>학습 기록</h2>
+      <div class="record-room-summary">
+        <article>
+          <span>오늘 공부</span>
+          <strong id="recordTodayMinutes">0분</strong>
+        </article>
+        <article>
+          <span>오늘 세션</span>
+          <strong id="recordTodaySessions">0</strong>
+        </article>
+        <article>
+          <span>누적 질문</span>
+          <strong id="recordTotalQuestions">0</strong>
+        </article>
+        <article>
+          <span>Royal</span>
+          <strong id="recordRoyalProgress">0%</strong>
+        </article>
+      </div>
+      <div class="record-room-actions">
+        <button id="recordOpenArchiveButton" class="primary-button" type="button">수업 보관함</button>
+        <button id="recordOpenAchievementsButton" type="button">업적 보기</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="lessonSaveModal" class="lesson-modal" aria-label="수업 저장 확인" aria-hidden="true">
+    <div class="lesson-modal-panel" role="dialog" aria-modal="true" aria-labelledby="lessonSaveTitle">
+      <p class="eyebrow">Lesson Archive</p>
+      <h2 id="lessonSaveTitle">이번 수업을 저장하시겠습니까?</h2>
+      <div class="lesson-save-summary">
+        <strong id="lessonSaveProfessor">시라토리 데에타</strong>
+        <span id="lessonSaveSubject">데이터베이스</span>
+        <dl>
+          <div>
+            <dt>공부 시간</dt>
+            <dd id="lessonSaveMinutes">0분</dd>
+          </div>
+          <div>
+            <dt>질문 수</dt>
+            <dd id="lessonSaveQuestions">0개</dd>
+          </div>
+        </dl>
+      </div>
+      <div class="lesson-modal-actions">
+        <button id="saveLessonButton" class="primary-button" type="button">수업 저장</button>
+        <button id="discardLessonButton" type="button">저장 안 함</button>
+        <button id="cancelLessonSaveButton" type="button">취소</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="lessonArchivePanel" class="lesson-archive-panel" aria-label="수업 보관함" aria-hidden="true">
+    <div class="lesson-archive-shell">
+      <header class="lesson-archive-header">
+        <div>
+          <p class="eyebrow">Saved Lessons</p>
+          <h2>수업 보관함</h2>
+        </div>
+        <button id="closeLessonArchiveButton" type="button">닫기</button>
+      </header>
+
+      <div class="lesson-archive-layout">
+        <div id="lessonArchiveList" class="lesson-archive-list"></div>
+        <article id="lessonArchiveDetail" class="lesson-archive-detail">
+          <p class="archive-empty">저장된 수업 카드를 선택하면 전체 대화를 다시 볼 수 있습니다.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="studentProfileModal" class="student-profile-modal" aria-label="학번 입력" aria-hidden="true">
+    <form id="studentProfileForm" class="student-profile-panel" role="dialog" aria-modal="true" aria-labelledby="studentProfileTitle">
+      <p class="eyebrow">Student Profile</p>
+      <h2 id="studentProfileTitle">몇 학번이야?</h2>
+      <p>교수님들이 학생을 지도하는 방식을 반영합니다.</p>
+      <label for="admissionYearInput">입학 연도</label>
+      <input id="admissionYearInput" inputmode="numeric" autocomplete="off" placeholder="24 또는 2024">
+      <p id="admissionYearError" class="student-profile-error" role="alert"></p>
+      <div class="student-profile-actions">
+        <button id="saveAdmissionYearButton" class="primary-button" type="submit">저장</button>
+        <button id="resetAdmissionYearButton" type="button">초기화</button>
+      </div>
+    </form>
+  </section>
+
+  <div class="hidden-data" aria-hidden="true">
+    <strong id="topTotalStudyTime">0m</strong>
+    <strong id="totalMinutes">0분</strong>
+    <p id="unlockMessage"></p>
+  </div>
+
+  <div id="successEffect" class="success-effect" aria-hidden="true">Session Complete</div>
+  <div id="infoPopupMount" class="info-popup-mount" aria-live="polite"></div>
+
+  <script src="js/professors.js"></script>
+  <script src="js/achievementsData.js"></script>
+  <script src="js/professorIdleLines.js"></script>
+  <script src="js/professorMode.js"></script>
+  <script src="js/config/constants.js"></script>
+  <script src="js/config/assets.js"></script>
+  <script src="js/state/store.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/infoPopupContent.js"></script>
+  <script src="js/infoPopups.js"></script>
+  <script src="/vendor/pixi.js/pixi.min.js"></script>
+  <script src="/public/live2d/live2dcubismcore.min.js"></script>
+  <script src="js/pixiLive2DCompat.js"></script>
+  <script src="/vendor/naari-pixi-live2d-display/cubism5.min.js"></script>
+  <script src="js/live2dManager.js"></script>
+  <script src="js/ui/sceneCamera.js"></script>
+  <script src="js/ui/touchEffect.js"></script>
+  <script src="js/features/screens/screenManager.js"></script>
+  <script src="js/features/operator/operatorInteraction.js"></script>
+  <script src="js/features/professor/professorInteraction.js"></script>
+  <script src="js/voiceManager.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/opening.js"></script>
+</body>
+</html>

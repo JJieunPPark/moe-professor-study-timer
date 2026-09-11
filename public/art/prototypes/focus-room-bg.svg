@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="FOCUS ROOM BACKGROUND prototype">
+  <rect width="1600" height="900" fill="#101c32"/>
+  <path d="M0 720C260 620 410 780 690 670s455-70 910 42v188H0z" fill="#264a78" opacity=".38"/>
+  <text x="800" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="900" fill="#ffffff">[ FOCUS ROOM BACKGROUND ]</text>
+  <text x="800" y="492" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#a8c6f0">replace this art</text>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 420" role="img" aria-label="STUDENT RECORD PAPER prototype">
+  <rect width="620" height="420" rx="22" fill="#fffdf7" opacity=".88"/>
+  <path d="M60 88h500M60 158h500M60 228h500M60 298h500" stroke="#6a88b7" stroke-width="4" opacity=".28"/>
+  <text x="310" y="190" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="#23395f">[ STUDENT RECORD PAPER ]</text>
+  <text x="310" y="238" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#60789f">replace this art</text>
+</svg>

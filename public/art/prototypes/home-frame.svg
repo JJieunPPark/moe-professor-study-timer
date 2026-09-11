@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="HOME NOTE FRAME prototype">
+  <rect width="1200" height="760" rx="36" fill="#fff8f1" opacity=".78"/>
+  <rect x="28" y="28" width="1144" height="704" rx="28" fill="none" stroke="#23395f" stroke-width="8" stroke-dasharray="22 16" opacity=".45"/>
+  <text x="600" y="345" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="900" fill="#23395f">[ MAIN NOTE FRAME ]</text>
+  <text x="600" y="415" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#60789f">replace this art</text>
+</svg>

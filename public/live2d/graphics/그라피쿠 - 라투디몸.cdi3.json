@@ -1,0 +1,147 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "ParamAngleX",
+			"GroupId": "ParamGroup2",
+			"Name": "각도 X"
+		},
+		{
+			"Id": "ParamAngleY",
+			"GroupId": "ParamGroup2",
+			"Name": "각도 Y"
+		},
+		{
+			"Id": "ParamAngleZ",
+			"GroupId": "ParamGroup2",
+			"Name": "각도 Z"
+		},
+		{
+			"Id": "ParamEyeLOpen",
+			"GroupId": "ParamGroup",
+			"Name": "왼쪽 눈 깜빡임"
+		},
+		{
+			"Id": "ParamEyeLSmile",
+			"GroupId": "ParamGroup",
+			"Name": "왼쪽 눈 미소"
+		},
+		{
+			"Id": "ParamEyeBallX",
+			"GroupId": "ParamGroup",
+			"Name": "눈 X"
+		},
+		{
+			"Id": "ParamEyeBallY",
+			"GroupId": "ParamGroup",
+			"Name": "눈 Y"
+		},
+		{
+			"Id": "ParamBrowLY",
+			"GroupId": "ParamGroup3",
+			"Name": "왼쪽 눈썹 위아래로"
+		},
+		{
+			"Id": "ParamBrowLForm",
+			"GroupId": "ParamGroup3",
+			"Name": "왼쪽 눈썹 변형"
+		},
+		{
+			"Id": "ParamMouthForm",
+			"GroupId": "ParamGroup4",
+			"Name": "입 변형"
+		},
+		{
+			"Id": "ParamMouthOpenY",
+			"GroupId": "ParamGroup4",
+			"Name": "입 여닫기"
+		},
+		{
+			"Id": "ParamCheek",
+			"GroupId": "ParamGroup4",
+			"Name": "수줍음"
+		},
+		{
+			"Id": "ParamBreath",
+			"GroupId": "ParamGroup5",
+			"Name": "호흡"
+		},
+		{
+			"Id": "ParamArmMove",
+			"GroupId": "ParamGroup5",
+			"Name": "팔 움직임"
+		},
+		{
+			"Id": "ParamGlasses",
+			"GroupId": "ParamGroup5",
+			"Name": "안경 흔들림"
+		},
+		{
+			"Id": "ParamCardSway",
+			"GroupId": "ParamGroup5",
+			"Name": "교원증 흔들림"
+		},
+		{
+			"Id": "ParamHappy",
+			"GroupId": "ParamGroup7",
+			"Name": "웃음"
+		},
+		{
+			"Id": "ParamTroubled",
+			"GroupId": "ParamGroup7",
+			"Name": "곤란"
+		}
+	],
+	"ParameterGroups": [
+		{
+			"Id": "ParamGroup2",
+			"GroupId": "",
+			"Name": "XYZ"
+		},
+		{
+			"Id": "ParamGroup",
+			"GroupId": "",
+			"Name": "눈"
+		},
+		{
+			"Id": "ParamGroup3",
+			"GroupId": "",
+			"Name": "눈썹"
+		},
+		{
+			"Id": "ParamGroup4",
+			"GroupId": "",
+			"Name": "입"
+		},
+		{
+			"Id": "ParamGroup5",
+			"GroupId": "",
+			"Name": "몸"
+		},
+		{
+			"Id": "ParamGroup7",
+			"GroupId": "",
+			"Name": "표정"
+		}
+	],
+	"Parts": [
+		{
+			"Id": "Part",
+			"Name": "모델"
+		},
+		{
+			"Id": "Part2",
+			"Name": "폴더 8"
+		},
+		{
+			"Id": "Part3",
+			"Name": "입"
+		}
+	],
+	"CombinedParameters": [
+		[
+			"ParamBrowLY",
+			"ParamBrowLForm"
+		]
+	]
+}

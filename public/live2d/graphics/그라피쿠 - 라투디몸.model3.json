@@ -1,0 +1,47 @@
+{
+  "Version": 3,
+
+  "FileReferences": {
+    "Moc": "그라피쿠 - 라투디몸.moc3",
+
+    "Textures": [
+      "그라피쿠 - 라투디몸.4096/texture_00.png"
+    ],
+
+    "DisplayInfo": "그라피쿠 - 라투디몸.cdi3.json",
+
+    "Motions": {
+      "Idle": [
+        {
+          "File": "motions/Idle.motion3.json"
+        }
+      ],
+
+      "Smile": [
+        {
+          "File": "motions/Smile.motion3.json"
+        }
+      ],
+
+      "Troubled": [
+        {
+          "File": "motions/Troubled.motion3.json"
+        }
+      ]
+    }
+  },
+
+  "Groups": [
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": []
+    },
+
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": []
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="TOUCH EFFECT prototype">
+  <circle cx="120" cy="120" r="96" fill="#ffffff" opacity=".22" stroke="#f5c84f" stroke-width="8"/>
+  <circle cx="120" cy="120" r="52" fill="#f5c84f" opacity=".34"/>
+  <text x="120" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#23395f">[ TOUCH EFFECT ]</text>
+</svg>
