@@ -10,6 +10,8 @@
   modeWheel: document.getElementById("modeWheel"),
   wheelLobbyButton: document.getElementById("wheelLobbyButton"),
   wheelQuestionButton: document.getElementById("wheelQuestionButton"),
+  wheelRecordButton: document.getElementById("wheelRecordButton"),
+  wheelFocusButton: document.getElementById("wheelFocusButton"),
   modeEnterButton: document.getElementById("modeEnterButton"),
   homeSceneWorld: document.getElementById("homeSceneWorld"),
   professorDecorationArt: document.getElementById("professorDecorationArt"),
@@ -183,6 +185,14 @@ let currentMainMode = "lobby";
 let wheelSelection = "lobby";
 let rouletteNavigationTimer = null;
 let currentQuestionMode = "general";
+
+const MODE_ROULETTE_MODES = ["lobby", "question", "record", "focus"];
+const MODE_ROULETTE_ANGLES = {
+  lobby: "0deg",
+  question: "-90deg",
+  record: "-180deg",
+  focus: "-270deg"
+};
 let homeSceneCamera = null;
 const lastIdleLineByProfessor = {};
 
@@ -261,6 +271,8 @@ function initializeApp() {
   elements.enterRecordRoomButton?.addEventListener("click", openRecordRoom);
   elements.wheelLobbyButton?.addEventListener("click", () => navigateModeRoulette("lobby"));
   elements.wheelQuestionButton?.addEventListener("click", () => navigateModeRoulette("question"));
+  elements.wheelRecordButton?.addEventListener("click", () => navigateModeRoulette("record"));
+  elements.wheelFocusButton?.addEventListener("click", () => navigateModeRoulette("focus"));
   elements.modeWheel?.setAttribute("tabindex", "0");
   elements.modeWheel?.addEventListener("wheel", handleModeWheelScroll, { passive: false });
   elements.modeWheel?.addEventListener("keydown", handleModeWheelKeydown);
@@ -725,14 +737,18 @@ function setQuestionMode(mode) {
 }
 
 function setWheelSelection(mode) {
-  wheelSelection = mode === "question" ? "question" : "lobby";
+  wheelSelection = MODE_ROULETTE_MODES.includes(mode) ? mode : "lobby";
   document.body.classList.toggle("wheel-selection-question", wheelSelection === "question");
   document.body.classList.toggle("wheel-selection-lobby", wheelSelection === "lobby");
-  document.body.style.setProperty("--mode-roulette-rotation", wheelSelection === "question" ? "180deg" : "0deg");
+  document.body.classList.toggle("wheel-selection-record", wheelSelection === "record");
+  document.body.classList.toggle("wheel-selection-focus", wheelSelection === "focus");
+  document.body.style.setProperty("--mode-roulette-rotation", MODE_ROULETTE_ANGLES[wheelSelection] || "0deg");
 
   [
     elements.wheelLobbyButton,
-    elements.wheelQuestionButton
+    elements.wheelQuestionButton,
+    elements.wheelRecordButton,
+    elements.wheelFocusButton
   ].forEach((button) => {
     if (!button) {
       return;
@@ -746,7 +762,9 @@ function setWheelSelection(mode) {
 
 function handleModeWheelScroll(event) {
   event.preventDefault();
-  setWheelSelection(wheelSelection === "lobby" ? "question" : "lobby");
+  const currentIndex = MODE_ROULETTE_MODES.indexOf(wheelSelection);
+  const nextIndex = (currentIndex + 1) % MODE_ROULETTE_MODES.length;
+  setWheelSelection(MODE_ROULETTE_MODES[nextIndex]);
 }
 
 function handleModeWheelKeydown(event) {
@@ -762,21 +780,19 @@ function handleModeWheelKeydown(event) {
 
   if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "ArrowLeft" || event.key === "ArrowRight") {
     event.preventDefault();
-    setWheelSelection(wheelSelection === "lobby" ? "question" : "lobby");
+    const direction = event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 1;
+    const currentIndex = MODE_ROULETTE_MODES.indexOf(wheelSelection);
+    const nextIndex = (currentIndex + direction + MODE_ROULETTE_MODES.length) % MODE_ROULETTE_MODES.length;
+    setWheelSelection(MODE_ROULETTE_MODES[nextIndex]);
   }
 }
 
 function enterSelectedMode() {
-  if (wheelSelection === "question") {
-    navigateModeRoulette("question");
-    return;
-  }
-
-  navigateModeRoulette("lobby");
+  navigateModeRoulette(wheelSelection);
 }
 
 function navigateModeRoulette(mode) {
-  const nextMode = mode === "question" ? "question" : "lobby";
+  const nextMode = MODE_ROULETTE_MODES.includes(mode) ? mode : "lobby";
   clearTimeout(rouletteNavigationTimer);
   setWheelSelection(nextMode);
   document.body.classList.add("mode-roulette-spinning");
@@ -784,7 +800,39 @@ function navigateModeRoulette(mode) {
   rouletteNavigationTimer = setTimeout(() => {
     document.body.classList.remove("mode-roulette-spinning");
 
+    if (nextMode === "focus") {
+      if (document.body.classList.contains("focus-mode-active")) {
+        closeFocusMode();
+      }
+      if (document.body.classList.contains("record-room-active")) {
+        closeRecordRoom();
+      }
+      if (!document.body.classList.contains("focus-room-active")) {
+        openFocusRoom();
+      }
+      return;
+    }
+
+    if (nextMode === "record") {
+      if (document.body.classList.contains("focus-mode-active")) {
+        closeFocusMode();
+      }
+      if (document.body.classList.contains("focus-room-active")) {
+        closeFocusRoom();
+      }
+      if (!document.body.classList.contains("record-room-active")) {
+        openRecordRoom();
+      }
+      return;
+    }
+
     if (nextMode === "question") {
+      if (document.body.classList.contains("focus-room-active")) {
+        closeFocusRoom();
+      }
+      if (document.body.classList.contains("record-room-active")) {
+        closeRecordRoom();
+      }
       if (!document.body.classList.contains("focus-mode-active")) {
         openQuestionRoom();
       }
@@ -793,6 +841,16 @@ function navigateModeRoulette(mode) {
 
     if (document.body.classList.contains("focus-mode-active")) {
       requestCloseFocusMode();
+      return;
+    }
+    if (document.body.classList.contains("focus-room-active")) {
+      closeFocusRoom();
+      setWheelSelection("lobby");
+      return;
+    }
+    if (document.body.classList.contains("record-room-active")) {
+      closeRecordRoom();
+      setWheelSelection("lobby");
       return;
     }
 
@@ -1317,6 +1375,7 @@ function openFocusRoom() {
   setProfessorGif("idle");
   elements.focusRoom.setAttribute("aria-hidden", "false");
   document.body.classList.add("focus-room-active");
+  setWheelSelection("focus");
   setActiveScreen("focus");
   pauseIdleLineTimer();
   applyProfessorMode("lobby");
@@ -1325,6 +1384,7 @@ function openFocusRoom() {
 function closeFocusRoom() {
   elements.focusRoom.setAttribute("aria-hidden", "true");
   document.body.classList.remove("focus-room-active");
+  setWheelSelection("lobby");
   setActiveScreen("home");
   resumeIdleLineTimer();
 }
@@ -1333,6 +1393,7 @@ function openRecordRoom() {
   renderRecordRoom();
   elements.recordRoom.setAttribute("aria-hidden", "false");
   document.body.classList.add("record-room-active");
+  setWheelSelection("record");
   setActiveScreen("record");
   pauseIdleLineTimer();
 }
@@ -1340,6 +1401,7 @@ function openRecordRoom() {
 function closeRecordRoom() {
   elements.recordRoom.setAttribute("aria-hidden", "true");
   document.body.classList.remove("record-room-active");
+  setWheelSelection("lobby");
   setActiveScreen("home");
   resumeIdleLineTimer();
 }
@@ -1934,19 +1996,15 @@ function renderSubjectQuestionStats() {
     return;
   }
 
-  elements.subjectQuestionStats.innerHTML = "";
-  SUBJECTS.forEach((subject) => {
-    const row = document.createElement("div");
-    const label = document.createElement("span");
-    const value = document.createElement("strong");
-
-    label.textContent = subject.label;
-    value.textContent = studyStats.subjectQuestions[subject.key] || 0;
-
-    row.appendChild(label);
-    row.appendChild(value);
-    elements.subjectQuestionStats.appendChild(row);
-  });
+  const compactLabels = {
+    database: "DB",
+    os: "OS",
+    graphics: "CG",
+    algorithm: "ALG"
+  };
+  elements.subjectQuestionStats.textContent = SUBJECTS
+    .map((subject) => `${compactLabels[subject.key] || subject.label} ${studyStats.subjectQuestions[subject.key] || 0}`)
+    .join(" / ");
 }
 
 function formatMinutes(minutes) {

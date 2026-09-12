@@ -156,6 +156,26 @@
           <p id="professorQuote" class="quote">"관계부터 정리하고 JOIN합시다."</p>
         </section>
 
+      </section>
+
+      <section class="speech-layer" aria-label="교수 대사와 질문 입력">
+        <section id="dialogueBubble" class="visual-novel-dialogue" aria-labelledby="dialogueTitle">
+          <div class="dialogue-nameplate" id="dialogueTitle">시라토리 데에타</div>
+          <p id="dialogueText">관계부터 정리하고 JOIN합시다.</p>
+          <span class="dialogue-continue-indicator" aria-hidden="true"></span>
+        </section>
+      </section>
+
+      <div class="bottom-command-row">
+        <button class="nav-action" type="button">업적</button>
+        <div class="bgm-control" aria-label="배경음악 설정">
+          <button id="bgmToggleButton" class="nav-action bgm-toggle-button" type="button">BGM ON</button>
+          <label class="bgm-volume-control" for="bgmVolumeSlider">
+            <span>VOL</span>
+            <input id="bgmVolumeSlider" type="range" min="0" max="100" value="25">
+          </label>
+        </div>
+        <button id="lessonArchiveButton" class="nav-action" type="button">수업 보관함</button>
         <section class="stats-grid" aria-label="공부 통계">
           <article class="stat-card game-card">
             <span>오늘 완료 세션</span>
@@ -166,50 +186,30 @@
             <strong id="todayMinutes">0분</strong>
           </article>
         </section>
-      </section>
-
-      <section class="speech-layer" aria-label="교수 대사와 질문 입력">
-        <section id="dialogueBubble" class="visual-novel-dialogue" aria-labelledby="dialogueTitle">
-          <div class="dialogue-nameplate" id="dialogueTitle">시라토리 데에타</div>
-          <p id="dialogueText">관계부터 정리하고 JOIN합시다.</p>
-          <span class="dialogue-continue-indicator" aria-hidden="true"></span>
-        </section>
-
-        <div class="bottom-command-row">
-          <button class="nav-action" type="button">업적</button>
-          <div class="bgm-control" aria-label="배경음악 설정">
-            <button id="bgmToggleButton" class="nav-action bgm-toggle-button" type="button">BGM ON</button>
-            <label class="bgm-volume-control" for="bgmVolumeSlider">
-              <span>VOL</span>
-              <input id="bgmVolumeSlider" type="range" min="0" max="100" value="25">
-            </label>
+        <form id="llmForm" class="llm-form">
+          <label for="llmInput">질문 입력</label>
+          <div class="llm-input-row">
+            <input id="llmInput" type="text" placeholder="질문 입력...">
+            <button id="llmSubmitButton" type="submit">질문하기</button>
           </div>
-          <button id="lessonArchiveButton" class="nav-action" type="button">수업 보관함</button>
-          <form id="llmForm" class="llm-form">
-            <label for="llmInput">질문 입력</label>
-            <div class="llm-input-row">
-              <input id="llmInput" type="text" placeholder="질문 입력...">
-              <button id="llmSubmitButton" type="submit">질문하기</button>
-            </div>
-          </form>
-        </div>
-      </section>
+        </form>
+      </div>
     </section>
   </main>
 
   <section class="mode-wheel-hud" aria-label="메인 모드 선택">
-    <button id="modeEnterButton" class="mode-enter-button" type="button" aria-label="모드 룰렛 열기">♡</button>
-    <div id="modeWheel" class="mode-wheel" role="group" aria-label="LOBBY와 QUESTION 모드 선택">
+    <div id="modeWheel" class="mode-wheel" role="group" aria-label="메인 모드 선택">
       <div class="mode-wheel-plate" aria-hidden="true">
         <div class="mode-wheel-section mode-wheel-section-lobby"></div>
         <div class="mode-wheel-section mode-wheel-section-question"></div>
+        <div class="mode-wheel-section mode-wheel-section-record"></div>
+        <div class="mode-wheel-section mode-wheel-section-focus"></div>
         <div class="mode-wheel-ring"></div>
-        <div class="mode-wheel-hub"></div>
       </div>
       <button id="wheelLobbyButton" class="mode-wheel-item mode-wheel-item-lobby is-selected" type="button" data-mode="lobby" aria-pressed="true" aria-label="LOBBY로 이동">
         <svg class="mode-wheel-text" viewBox="0 0 220 220" aria-hidden="true" focusable="false">
           <defs>
-            <path id="modeArcLobby" d="M 48 110 A 62 62 0 0 1 172 110"></path>
+            <path id="modeArcLobby" d="M 110 28 A 82 82 0 0 1 192 110"></path>
           </defs>
           <text><textPath href="#modeArcLobby" startOffset="50%" text-anchor="middle">LOBBY</textPath></text>
         </svg>
@@ -217,12 +217,29 @@
       <button id="wheelQuestionButton" class="mode-wheel-item mode-wheel-item-question" type="button" data-mode="question" aria-pressed="false" aria-label="QUESTION으로 이동">
         <svg class="mode-wheel-text" viewBox="0 0 220 220" aria-hidden="true" focusable="false">
           <defs>
-            <path id="modeArcQuestion" d="M 172 110 A 62 62 0 0 1 48 110"></path>
+            <path id="modeArcQuestion" d="M 192 110 A 82 82 0 0 1 110 192"></path>
           </defs>
-          <text><textPath href="#modeArcQuestion" startOffset="50%" text-anchor="middle">QUESTION</textPath></text>
+          <text><textPath href="#modeArcQuestion" startOffset="50%" text-anchor="middle">Q&amp;A</textPath></text>
+        </svg>
+      </button>
+      <button id="wheelRecordButton" class="mode-wheel-item mode-wheel-item-record" type="button" data-mode="record" aria-pressed="false" aria-label="RECORD로 이동">
+        <svg class="mode-wheel-text" viewBox="0 0 220 220" aria-hidden="true" focusable="false">
+          <defs>
+            <path id="modeArcRecord" d="M 110 192 A 82 82 0 0 1 28 110"></path>
+          </defs>
+          <text><textPath href="#modeArcRecord" startOffset="50%" text-anchor="middle">RECORD</textPath></text>
+        </svg>
+      </button>
+      <button id="wheelFocusButton" class="mode-wheel-item mode-wheel-item-focus" type="button" data-mode="focus" aria-pressed="false" aria-label="FOCUS로 이동">
+        <svg class="mode-wheel-text" viewBox="0 0 220 220" aria-hidden="true" focusable="false">
+          <defs>
+            <path id="modeArcFocus" d="M 28 110 A 82 82 0 0 1 110 28"></path>
+          </defs>
+          <text><textPath href="#modeArcFocus" startOffset="50%" text-anchor="middle">FOCUS</textPath></text>
         </svg>
       </button>
     </div>
+    <button id="modeEnterButton" class="mode-enter-button" type="button" aria-label="모드 룰렛 열기">♡</button>
   </section>
 
   <section id="focusMode" class="focus-mode" aria-label="질문 모드" aria-hidden="true">

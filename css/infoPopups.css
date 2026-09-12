@@ -6,23 +6,25 @@
 }
 
 .info-popup-launcher {
-  position: fixed;
+  position: relative;
   left: auto;
-  right: 18px;
+  right: auto;
   top: auto;
-  bottom: 112px;
+  bottom: auto;
   z-index: 55;
-  display: grid;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   max-width: none;
-  padding: 12px;
+  min-height: 46px;
+  padding: 0 0 0 78px;
   transform: none;
   pointer-events: auto;
 }
 
 .info-popup-launcher::before {
   position: absolute;
-  right: 0;
+  left: 0;
   top: 50%;
   width: 72px;
   height: 32px;
@@ -30,7 +32,7 @@
   border: 1px solid color-mix(in srgb, var(--theme-main) 38%, white);
   border-radius: 999px;
   color: var(--theme-sub);
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 900;
   writing-mode: horizontal-tb;
   display: grid;
@@ -43,9 +45,9 @@
 .info-popup-launch-button {
   min-height: 38px;
   border-radius: 6px;
-  padding: 0 12px;
+  padding: 0 10px;
   color: color-mix(in srgb, var(--theme-sub) 82%, #0b1629);
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 900;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.94), color-mix(in srgb, var(--theme-light) 52%, white));
@@ -54,7 +56,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     4px 4px 0 color-mix(in srgb, var(--theme-sub) 26%, transparent);
   opacity: 0;
-  transform: translateX(72px) rotate(6deg);
+  transform: translateX(-10px);
   transition:
     opacity 180ms ease,
     transform 260ms var(--ease-spring),
@@ -64,35 +66,27 @@
 .info-popup-launcher:hover .info-popup-launch-button,
 .info-popup-launcher:focus-within .info-popup-launch-button {
   opacity: 1;
-  transform: translateX(calc(var(--turntable-x, 70px) * -1)) rotate(var(--turntable-rotate, 0deg));
+  transform: translateX(0);
 }
 
 .info-popup-launch-button:nth-child(1) {
-  --turntable-x: 112px;
-  --turntable-rotate: -7deg;
   transition-delay: 0ms;
 }
 
 .info-popup-launch-button:nth-child(2) {
-  --turntable-x: 82px;
-  --turntable-rotate: -2deg;
   transition-delay: 50ms;
 }
 
 .info-popup-launch-button:nth-child(3) {
-  --turntable-x: 62px;
-  --turntable-rotate: 3deg;
   transition-delay: 100ms;
 }
 
 .info-popup-launch-button:nth-child(4) {
-  --turntable-x: 92px;
-  --turntable-rotate: 8deg;
   transition-delay: 150ms;
 }
 
 .info-popup-launch-button:hover {
-  transform: translateX(calc(var(--turntable-x, 70px) * -1)) translateY(-2px) rotate(var(--turntable-rotate, 0deg));
+  transform: translateY(-2px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     6px 6px 0 color-mix(in srgb, var(--theme-sub) 24%, transparent);
