@@ -1,0 +1,151 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "ParamEyeLOpen",
+			"GroupId": "ParamGroup",
+			"Name": "왼쪽 눈 깜빡임"
+		},
+		{
+			"Id": "ParamEyeLSmile",
+			"GroupId": "ParamGroup",
+			"Name": "왼쪽 눈 미소"
+		},
+		{
+			"Id": "ParamEyeROpen",
+			"GroupId": "ParamGroup",
+			"Name": "오른쪽 눈 깜빡임"
+		},
+		{
+			"Id": "ParamEyeRSmile",
+			"GroupId": "ParamGroup",
+			"Name": "오른쪽 눈 미소"
+		},
+		{
+			"Id": "ParamBrowLY",
+			"GroupId": "ParamGroup2",
+			"Name": "왼쪽 눈썹 위아래로"
+		},
+		{
+			"Id": "ParamBrowLForm",
+			"GroupId": "ParamGroup2",
+			"Name": "왼쪽 눈썹 변형"
+		},
+		{
+			"Id": "ParamBrowRY",
+			"GroupId": "ParamGroup2",
+			"Name": "오른쪽 눈썹 위아래로"
+		},
+		{
+			"Id": "ParamBrowRForm",
+			"GroupId": "ParamGroup2",
+			"Name": "오른쪽 눈썹 변형"
+		},
+		{
+			"Id": "ParamMouthForm",
+			"GroupId": "ParamGroup3",
+			"Name": "입 변형"
+		},
+		{
+			"Id": "ParamHairEnd",
+			"GroupId": "ParamGroup4",
+			"Name": "꽁지"
+		},
+		{
+			"Id": "ParamHairHigh",
+			"GroupId": "ParamGroup4",
+			"Name": "머리 흔들림 위"
+		},
+		{
+			"Id": "ParamHairMiddle",
+			"GroupId": "ParamGroup4",
+			"Name": "머리 흔들림 중간"
+		},
+		{
+			"Id": "ParamHairLow",
+			"GroupId": "ParamGroup4",
+			"Name": "머리 흔들림 밑"
+		},
+		{
+			"Id": "Hair",
+			"GroupId": "ParamGroup4",
+			"Name": "머리 본체"
+		},
+		{
+			"Id": "Glasses",
+			"GroupId": "ParamGroup7",
+			"Name": "안경"
+		},
+		{
+			"Id": "Card",
+			"GroupId": "ParamGroup7",
+			"Name": "교원증"
+		},
+		{
+			"Id": "cursorX",
+			"GroupId": "ParamGroup6",
+			"Name": "커서X"
+		},
+		{
+			"Id": "cursorY",
+			"GroupId": "ParamGroup6",
+			"Name": "커서Y"
+		}
+	],
+	"ParameterGroups": [
+		{
+			"Id": "ParamGroup",
+			"GroupId": "",
+			"Name": "눈"
+		},
+		{
+			"Id": "ParamGroup2",
+			"GroupId": "",
+			"Name": "눈썹"
+		},
+		{
+			"Id": "ParamGroup3",
+			"GroupId": "",
+			"Name": "입"
+		},
+		{
+			"Id": "ParamGroup4",
+			"GroupId": "",
+			"Name": "머리"
+		},
+		{
+			"Id": "ParamGroup7",
+			"GroupId": "",
+			"Name": "몸"
+		},
+		{
+			"Id": "ParamGroup6",
+			"GroupId": "",
+			"Name": "커서"
+		}
+	],
+	"Parts": [
+		{
+			"Id": "Part",
+			"Name": "왼눈0"
+		},
+		{
+			"Id": "Part2",
+			"Name": "오른눈0"
+		},
+		{
+			"Id": "Part3",
+			"Name": "입0"
+		},
+		{
+			"Id": "Part4",
+			"Name": "머리0X"
+		}
+	],
+	"CombinedParameters": [
+		[
+			"cursorX",
+			"cursorY"
+		]
+	]
+}

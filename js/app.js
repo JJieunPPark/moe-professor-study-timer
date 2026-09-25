@@ -995,6 +995,14 @@ function applyProfessorMode(preferredTargetId = "") {
   }
 
   const professor = PROFESSORS[currentProfessorKey];
+  const usesDedicatedLive2D = professor?.renderMode === "live2d";
+  const lobbyBackground = professor?.background?.lobby || "";
+  document.body.classList.toggle("professor-live2d-active", usesDedicatedLive2D);
+  document.body.classList.toggle("professor-scene-background-active", Boolean(lobbyBackground));
+  const sceneBackground = document.getElementById("professorSceneBackground");
+  if (sceneBackground) {
+    sceneBackground.style.backgroundImage = lobbyBackground ? `url("${lobbyBackground}")` : "none";
+  }
   renderMascot(professor);
 
   const live2dKey = shouldRenderProfessorLive2D(professor, isRoyalMode) ? currentProfessorKey : "";
@@ -1022,6 +1030,10 @@ function syncProfessorLive2D(professorKey, preferredTargetId = "") {
 }
 
 function shouldRenderProfessorLive2D(professor, isRoyalMode) {
+  if (professor?.renderMode === "live2d") {
+    return Boolean(getProfessorLive2DModel(professor));
+  }
+
   if (DEV_USE_PROFESSOR_GIF) {
     return false;
   }

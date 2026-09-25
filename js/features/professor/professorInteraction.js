@@ -25,13 +25,15 @@
   }
 
   function handleProfessorTouch(event) {
+    const touchTarget = document.getElementById("professorGifStage");
+    window.TouchDistortionRenderer?.play?.(touchTarget, event);
+    window.TouchEffect?.play?.(touchTarget, event);
+
     const professorKey = window.currentProfessorKey || "database";
     const professor = window.PROFESSORS?.[professorKey];
     if (!professor) {
       return;
     }
-
-    window.TouchEffect?.play?.(document.getElementById("professorGifStage"), event);
 
     const interaction = chooseTouchInteraction(professorKey, professor);
     if (!interaction) {

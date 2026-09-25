@@ -195,6 +195,12 @@ const PROFESSORS = {
 
   algorithm: {
 
+    renderMode: "live2d",
+
+    background: {
+      lobby: "/public/live2d/algorithm/model/%EB%A6%AC%EC%A6%88%EB%AC%B4%EB%B0%B0%EA%B2%BD.jpg"
+    },
+
     subjectLabel: "알고리즘",
 
     name: "아루고 리즈무",
@@ -216,7 +222,7 @@ const PROFESSORS = {
     },
 
     royal: {
-      live2dModel: "",
+      live2dModel: "/public/live2d/algorithm/model/%EB%A6%AC%EC%A6%88%EB%AC%B4%20-%20%EB%9D%BC%ED%88%AC%EB%94%94%EC%9A%A9.model3.json",
       fallbackSymbol: "ア",
       expressions: {
         default: "",

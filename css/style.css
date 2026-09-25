@@ -367,6 +367,20 @@ p {
   padding: 0;
 }
 
+.professor-scene-background {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+body.focus-mode-active .professor-scene-background {
+  display: none;
+}
+
 .character-zone {
   position: relative;
   width: 100%;
@@ -1042,6 +1056,7 @@ body.royal-mode .professor-star {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 8;
   display: grid;
   grid-template-columns: 70px minmax(142px, 176px) 104px minmax(112px, 126px) 88px minmax(460px, 1fr);
   align-items: stretch;
@@ -2450,6 +2465,71 @@ body.focus-mode-active .focus-chat-side {
   cursor: pointer;
 }
 
+.professor-gif-stage.touch-distortion-target {
+  --slime-x: 50%;
+  --slime-y: 50%;
+  --slime-radius: 128px;
+}
+
+.professor-gif-stage.is-slime-distorting #professorGif {
+  animation: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.professor-gif-stage.is-slime-distorting::before {
+  position: absolute;
+  left: var(--slime-x, 50%);
+  top: var(--slime-y, 50%);
+  z-index: 3;
+  width: calc(var(--slime-radius, 128px) * 2);
+  height: calc(var(--slime-radius, 128px) * 2);
+  content: "";
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.24) 0 16%, color-mix(in srgb, var(--theme-accent) 18%, transparent) 42%, transparent 72%);
+  box-shadow:
+    inset 0 0 22px rgba(255, 255, 255, 0.18),
+    0 0 26px color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.96);
+  animation: localSlimeSurfacePress 300ms linear both;
+  pointer-events: none;
+}
+
+.touch-distortion-svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.touch-distortion-debug-marker {
+  position: fixed;
+  z-index: 9999;
+  border: 2px solid rgba(255, 210, 64, 0.95);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(70, 25, 0, 0.5),
+    0 0 18px rgba(255, 210, 64, 0.62);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.touch-distortion-debug-marker::after {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  content: "";
+  border-radius: 50%;
+  background: #ff3868;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  transform: translate(-50%, -50%);
+}
+
 .professor-gif-stage.is-touching::after,
 .focus-professor-gif-stage.is-touching::after {
   position: absolute;
@@ -2659,6 +2739,29 @@ body.screen-record .lobby-shell {
   }
 }
 
+@keyframes localSlimeSurfacePress {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  25% {
+    opacity: 0.58;
+    transform: translate(-50%, -50%) scale(0.78);
+  }
+  47% {
+    opacity: 0.34;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  72% {
+    opacity: 0.18;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 @keyframes operatorPulse {
   0%,
   100% {
@@ -2744,6 +2847,8 @@ body.screen-record .lobby-shell {
   .mode-enter-button:hover { transform:translate(-50%,-52%) scale(1.04); }
   #focusBackButton { display:none; }
 }
-#professorGifStage { position:fixed; inset:0; z-index:0; width:100%; height:100%; overflow:hidden; pointer-events:auto; }
+#professorGifStage { position:fixed; inset:0; z-index:2; width:100%; height:100%; overflow:hidden; pointer-events:auto; }
 #professorGif { position:absolute; inset:0; display:block; width:100%; height:100%; max-width:none; object-fit:cover; object-position:center center; transform:none; pointer-events:none; }
-.live2d-lobby-stage { display:none !important; }
+#lobbyLive2DStage { z-index:3; }
+body.professor-live2d-active:not(.focus-mode-active) #professorGifStage { display:none; }
+body:not(.professor-live2d-active) .live2d-lobby-stage { display:none !important; }

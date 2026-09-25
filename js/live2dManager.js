@@ -320,6 +320,8 @@ async function initializeLive2DTarget(target) {
   target.container.appendChild(canvas);
 
   let pixiApp = null;
+  let instance = null;
+  const modelProfessorKey = live2dCurrentProfessorKey;
 
   try {
     pixiApp = await createPixiApplication(canvas, target.container, target.id);
@@ -335,8 +337,9 @@ async function initializeLive2DTarget(target) {
 
     pixiApp.stage.addChild(model);
 
-    const instance = {
+    instance = {
       ...target,
+      professorKey: modelProfessorKey,
       app: pixiApp,
       model,
       canvas,
@@ -355,17 +358,20 @@ async function initializeLive2DTarget(target) {
     instance.resizeObserver = new ResizeObserver(() => resizeLive2DInstance(instance));
     instance.resizeObserver.observe(target.container);
     live2dInstances.set(target.id, instance);
+    window.ProfessorStateController?.attach?.(instance, instance.professorKey);
+    window.ProfessorHairController?.attach?.(instance, instance.professorKey);
     resizeLive2DInstance(instance);
     startLive2DFrameUpdates(instance);
-    requestAnimationFrame(() => {
-      renderLive2DApplication(pixiApp);
-    });
     console.log("[Live2D] model loaded successfully", target.id);
     return instance;
   } catch (error) {
     console.error(`[Live2D] target "${target.id}" failed to initialize.`, error);
     console.error("[Live2D] target initialization stack:", error?.stack || "(no stack)");
+    instance?.resizeObserver?.disconnect?.();
+    window.ProfessorStateController?.detach?.(instance);
+    window.ProfessorHairController?.detach?.(instance);
     canvas.remove();
+    live2dInstances.delete(target.id);
     pixiApp?.destroy?.(true, { children: true, texture: false, baseTexture: false });
     target.container.classList.remove("is-visible");
     target.fallback?.classList.remove("live2d-ready");
@@ -508,6 +514,9 @@ function validateLive2DRendererState(model, app, targetId) {
       rendererClass: app.renderer?.constructor?.name,
       rendererType: app.renderer?.type,
       hasWebGL: Boolean(app.renderer?.gl),
+      backgroundAlpha: app.renderer?.background?.alpha,
+      backgroundColor: app.renderer?.background?.colorRgba,
+      clearBeforeRender: app.renderer?.background?.clearBeforeRender,
       modelRendererConnected: model.renderer === app.renderer,
       clippingManager: Boolean(clippingManager),
       clippingContextCount: clippingManager?.getClippingContextListForDraw?.()?.getSize?.(),
@@ -596,22 +605,6 @@ function toLive2DIdString(id) {
   return id?._id || id?.id || id?._key || id?.toString?.() || String(id);
 }
 
-function renderLive2DApplication(app) {
-  try {
-    if (typeof app.render === "function") {
-      app.render();
-      return;
-    }
-
-    if (typeof app.renderer?.render === "function" && app.stage) {
-      app.renderer.render({ container: app.stage });
-    }
-  } catch (error) {
-    console.error("[Live2D render] explicit render failed.", error);
-    console.error("[Live2D render] explicit render stack:", error?.stack || "(no stack)");
-  }
-}
-
 function ensureLive2DTickerRunning(app) {
   try {
     if (app.ticker && !app.ticker.started) {
@@ -630,13 +623,24 @@ function startLive2DFrameUpdates(instance) {
   }
 
   instance.live2dTickerUpdate = (ticker) => {
+    prepareTransparentLive2DFrame(instance.app);
+    window.ProfessorStateController?.update?.(instance, ticker?.deltaMS || 16.67);
+    window.ProfessorHairController?.update?.(instance, ticker?.deltaMS || 16.67);
     updateLive2DBreath(instance, ticker?.deltaMS || 16.67);
     updateLive2DLook(instance);
   };
 
-  const tickerPriority = window.PIXI?.UPDATE_PRIORITY?.LOW ?? -25;
+  const tickerPriority = (window.PIXI?.UPDATE_PRIORITY?.LOW ?? -25) + 1;
   instance.app.ticker.add(instance.live2dTickerUpdate, null, tickerPriority);
   ensureLive2DTickerRunning(instance.app);
+}
+
+function prepareTransparentLive2DFrame(app) {
+  const gl = app?.renderer?.gl;
+  if (typeof gl?.clearColor === "function") {
+    // Cubism mask rendering changes raw WebGL clear state outside Pixi's state cache.
+    gl.clearColor(0, 0, 0, 0);
+  }
 }
 
 function stopLive2DFrameUpdates(instance) {
@@ -653,13 +657,18 @@ function updateLive2DBreath(instance, deltaMS = 16.67) {
     return;
   }
 
+  const coreModel = instance.model?.internalModel?.coreModel;
+  if (!hasLive2DParameter(coreModel, LIVE2D_BREATH_PARAMETER)) {
+    return;
+  }
+
   instance.breathTime = (instance.breathTime || 0) + deltaMS / 1000;
   const phase = (instance.breathTime / LIVE2D_BREATH_CONFIG.cycleSeconds) * Math.PI * 2;
   const normalized = 0.5 - 0.5 * Math.cos(phase);
   const value = LIVE2D_BREATH_CONFIG.min
     + normalized * (LIVE2D_BREATH_CONFIG.max - LIVE2D_BREATH_CONFIG.min);
 
-  setLive2DParameter(instance.model?.internalModel?.coreModel, LIVE2D_BREATH_PARAMETER, value);
+  setLive2DParameter(coreModel, LIVE2D_BREATH_PARAMETER, value);
 }
 
 function updateLive2DLook(instance) {
@@ -766,7 +775,6 @@ function logLive2DLookDebug(instance, payload) {
 
 function hasVisibleLive2DPixels(instance) {
   try {
-    renderLive2DApplication(instance.app);
     const extractResult = instance.app.renderer?.extract?.pixels?.({
       target: instance.model,
       resolution: 0.25
@@ -916,6 +924,7 @@ async function createPixiApplication(canvas, container, targetId = "unknown") {
       width,
       height,
       backgroundAlpha: 0,
+      premultipliedAlpha: true,
       preference: "webgl",
       antialias: true,
       clearBeforeRender: true,
@@ -941,7 +950,9 @@ async function createPixiApplication(canvas, container, targetId = "unknown") {
 function applyTransparentLive2DRenderer(app) {
   try {
     if (app.renderer?.background) {
+      app.renderer.background.color = [0, 0, 0, 0];
       app.renderer.background.alpha = 0;
+      app.renderer.background.clearBeforeRender = true;
     }
     if (app.canvas) {
       app.canvas.style.background = "transparent";
@@ -973,7 +984,6 @@ function showLive2DTarget(activeTargetId) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         resizeLive2DInstance(instance);
-        renderLive2DApplication(instance.app);
         const hasVisiblePixels = hasVisibleLive2DPixels(instance);
         target.fallback?.classList.toggle("live2d-ready", hasVisiblePixels);
 
@@ -1050,6 +1060,8 @@ function destroyInactiveLive2DTargets(activeTargetId) {
 function destroyLive2DInstance(instance) {
   try {
     clearLive2DExpressionResetTimer();
+    window.ProfessorStateController?.detach?.(instance);
+    window.ProfessorHairController?.detach?.(instance);
     stopLive2DFrameUpdates(instance);
     instance.resizeObserver?.disconnect();
     instance.app?.stop?.();
@@ -1122,12 +1134,6 @@ function resizeLive2DInstance(instance) {
     console.error("[Live2D] model update stack:", error?.stack || "(no stack)");
   }
 
-  try {
-    renderLive2DApplication(app);
-  } catch (error) {
-    console.error("[Live2D] forced render failed.", error);
-    console.error("[Live2D] forced render stack:", error?.stack || "(no stack)");
-  }
 }
 
 function getLive2DNaturalSize(model) {
@@ -1284,6 +1290,16 @@ function setLive2DParameter(coreModel, parameterId, value) {
   }
 }
 
+function hasLive2DParameter(coreModel, parameterId) {
+  if (!coreModel || !parameterId) {
+    return false;
+  }
+
+  return typeof coreModel.getParameterIndex === "function"
+    ? coreModel.getParameterIndex(parameterId) >= 0
+    : false;
+}
+
 function markLive2DParameterMissing(coreModel, parameterId) {
   let missingSet = live2dMissingParameters.get(coreModel);
   if (!missingSet) {
@@ -1312,6 +1328,42 @@ window.__professorLive2DDebug = {
   },
   getBreathConfig() {
     return LIVE2D_BREATH_CONFIG;
+  },
+  getState(id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorStateController?.getState?.(instance) || null : null;
+  },
+  setState(stateName, options = {}) {
+    const instance = live2dInstances.get("lobby") || live2dInstances.get("focus");
+    return instance ? window.ProfessorStateController?.setState?.(instance, stateName, options) || false : false;
+  },
+  getTargetState(id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorStateController?.getTargetState?.(instance) || null : null;
+  },
+  isStateTransitioning(id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? Boolean(window.ProfessorStateController?.isTransitioning?.(instance)) : false;
+  },
+  resetState(id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorStateController?.reset?.(instance) || false : false;
+  },
+  getHairState(id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorHairController?.getState?.(instance) || null : null;
+  },
+  setHairEnabled(enabled, id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorHairController?.setEnabled?.(instance, enabled) || false : false;
+  },
+  resetHair(id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorHairController?.reset?.(instance) || false : false;
+  },
+  setHairConfig(config, id = "lobby") {
+    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    return instance ? window.ProfessorHairController?.setConfig?.(instance, config) || false : false;
   },
   setExpression(expressionName) {
     return setProfessorExpression(expressionName);
