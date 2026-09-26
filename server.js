@@ -4,21 +4,24 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config({ override: true });
 
 const app = express();
 const port = process.env.PORT || 3000;
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const staticRoot = path.resolve(projectRoot, process.env.STATIC_DIR || ".");
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static("."));
-app.use("/vendor/pixi.js", express.static(path.join(process.cwd(), "node_modules", "pixi.js", "dist")));
-app.use("/vendor/naari-pixi-live2d-display", express.static(path.join(process.cwd(), "node_modules", "@naari3", "pixi-live2d-display", "dist")));
-app.use("/public/modeldemo", express.static(path.join(process.cwd(), "public", "live2d", "modeldemo")));
+app.use(express.static(staticRoot));
+app.use("/vendor/pixi.js", express.static(path.join(projectRoot, "node_modules", "pixi.js", "dist")));
+app.use("/vendor/naari-pixi-live2d-display", express.static(path.join(projectRoot, "node_modules", "@naari3", "pixi-live2d-display", "dist")));
+app.use("/public/modeldemo", express.static(path.join(projectRoot, "public", "live2d", "modeldemo")));
 app.use(
   "/public/live2d/graphics",
-  express.static(path.join(process.cwd(), "public", "live2d", "graphics"))
+  express.static(path.join(projectRoot, "public", "live2d", "graphics"))
 );
 
 const client = new OpenAI({
@@ -45,7 +48,7 @@ function loadPromptTemplate(professorKey) {
     return promptCache.get(safeProfessorKey);
   }
 
-  const promptPath = path.join(process.cwd(), "prompts", `${safeProfessorKey}.txt`);
+  const promptPath = path.join(projectRoot, "prompts", `${safeProfessorKey}.txt`);
   const template = fs.readFileSync(promptPath, "utf8");
   promptCache.set(safeProfessorKey, template);
   return template;
@@ -56,7 +59,7 @@ function loadCommonPromptTemplate() {
     return promptCache.get(COMMON_PROMPT_KEY);
   }
 
-  const promptPath = path.join(process.cwd(), "prompts", "common.txt");
+  const promptPath = path.join(projectRoot, "prompts", "common.txt");
   const template = fs.readFileSync(promptPath, "utf8");
   promptCache.set(COMMON_PROMPT_KEY, template);
   return template;
@@ -156,7 +159,7 @@ app.get("/api/voices/:professorKey", async (req, res) => {
   const professorKey = normalizeProfessorKey(req.params.professorKey);
 
   try {
-    const voiceDirectory = path.join(process.cwd(), "public", "audio", "voice", professorKey);
+    const voiceDirectory = path.join(projectRoot, "public", "audio", "voice", professorKey);
     const entries = await fs.promises.readdir(voiceDirectory, { withFileTypes: true });
     const files = entries
       .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".wav"))
@@ -177,7 +180,7 @@ app.get("/api/opening-sounds", async (req, res) => {
   explosion: "explosion.wav"
 };
   const sounds = {};
-  const openingSoundDirectory = path.join(process.cwd(), "public", "audio", "opening");
+  const openingSoundDirectory = path.join(projectRoot, "public", "audio", "opening");
 
   await Promise.all(
     Object.entries(soundFiles).map(async ([key, fileName]) => {
@@ -257,6 +260,12 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Professor Study Timer is running at http://localhost:${port}`);
-});
+const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  app.listen(port, () => {
+    console.log(`Professor Study Timer is running at http://localhost:${port}`);
+  });
+}
+
+export default app;

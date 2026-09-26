@@ -3,7 +3,7 @@
   const DEFAULT_DURATION_MS = 250;
   const PRESETS = Object.freeze({
     NORMAL: { ParamMouthForm: 0, ParamBrowLY: 0, ParamBrowLForm: 0, ParamBrowRY: 0, ParamBrowRForm: 0, ParamEyeLOpen: 0.5, ParamEyeLSmile: 0, ParamEyeROpen: 0.5, ParamEyeRSmile: 0, Glasses: 0, Card: 0 },
-    LAUGH: { ParamMouthForm: 1, ParamBrowLY: -1, ParamBrowLForm: 0, ParamBrowRY: -1, ParamBrowRForm: 0, ParamEyeLOpen: 0, ParamEyeLSmile: 1, ParamEyeROpen: 0, ParamEyeRSmile: 1, Glasses: 0, Card: -1 },
+    LAUGH: { ParamMouthForm: 1, ParamBrowLY: -1, ParamBrowLForm: 0, ParamBrowRY: -1, ParamBrowRForm: 0, ParamEyeLOpen: 0.3, ParamEyeLSmile: 1, ParamEyeROpen: 0.3, ParamEyeRSmile: 1, Glasses: 0, Card: -1 },
     SURPRISED: { ParamMouthForm: -1, ParamBrowLY: 1, ParamBrowLForm: 1, ParamBrowRY: 1, ParamBrowRForm: 1, ParamEyeLOpen: 1, ParamEyeLSmile: 0, ParamEyeROpen: 1, ParamEyeRSmile: 0, Glasses: -1, Card: 0 },
     DISGUSTED: { ParamMouthForm: 0, ParamBrowLY: 0, ParamBrowLForm: -1, ParamBrowRY: 0.3, ParamBrowRForm: 0.6, ParamEyeLOpen: 0.3, ParamEyeLSmile: 0, ParamEyeROpen: 0.3, ParamEyeRSmile: 0, Glasses: 1, Card: 1 }
   });

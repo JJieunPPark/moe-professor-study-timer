@@ -1,6 +1,6 @@
 (function () {
   const initialState = {
-    currentProfessor: "database",
+    currentProfessor: "os",
     currentScreen: "home",
     professorExpression: "idle",
     questionMode: "general"

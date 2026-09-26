@@ -5,14 +5,19 @@ const LIVE2D_MIN_RENDER_SIZE = 2;
 const LIVE2D_SIZE_WAIT_FRAMES = 20;
 const LIVE2D_LAYOUT = {
   lobby: {
-    scaleMultiplier: 0.351,
-    xRatio: 0.43,
-    yRatio: 0.7
+    scaleMultiplier: 0.43,
+    xRatio: 0.49,
+    yRatio: 0.485
   },
-  focus: {
-    scaleMultiplier: 0.225,
-    xRatio: 0.45,
-    yRatio: 0.48
+  question: {
+    scaleMultiplier: 0.39,
+    xRatio: 0.48,
+    yRatio: 0.55
+  },
+  focusRoom: {
+    scaleMultiplier: 0.40,
+    xRatio: 0.48,
+    yRatio: 0.55
   }
 };
 const LIVE2D_BREATH_CONFIG = {
@@ -60,9 +65,14 @@ function getLive2DTargets() {
       fallback: document.querySelector(".character-placeholder")
     },
     {
-      id: "focus",
+      id: "question",
       container: document.getElementById("focusLive2DStage"),
       fallback: document.querySelector(".focus-professor-sprite")
+    },
+    {
+      id: "focusRoom",
+      container: document.getElementById("focusRoomLive2DStage"),
+      fallback: document.querySelector("#focusRoomProfessorGif")
     }
   ];
 }
@@ -219,7 +229,26 @@ function applyLive2DExpression(model, expressionId) {
 }
 
 function getActiveLive2DTargetId() {
-  return document.body.classList.contains("focus-mode-active") ? "focus" : "lobby";
+  if (document.body.classList.contains("focus-room-active")) {
+    return "focusRoom";
+  }
+  if (document.body.classList.contains("focus-mode-active")) {
+    return "question";
+  }
+  return "lobby";
+}
+
+function getActiveLive2DInstance() {
+  return live2dInstances.get(getActiveLive2DTargetId()) || null;
+}
+
+function setProfessorLive2DState(stateName, options = {}) {
+  const instance = getActiveLive2DInstance();
+  const setState = window.ProfessorStateController?.setState;
+  if (!instance || typeof setState !== "function") {
+    return false;
+  }
+  return Boolean(setState(instance, stateName, options));
 }
 
 async function initializeLive2DTargets(activeTargetId) {
@@ -359,7 +388,19 @@ async function initializeLive2DTarget(target) {
     instance.resizeObserver.observe(target.container);
     live2dInstances.set(target.id, instance);
     window.ProfessorStateController?.attach?.(instance, instance.professorKey);
+    const inspectorController = window.ParameterInspectorController?.attach?.(instance, instance.professorKey);
+    window.ProfessorParameterReactionController?.attach?.(
+      instance,
+      instance.professorKey,
+      inspectorController?.parameters
+    );
     window.ProfessorHairController?.attach?.(instance, instance.professorKey);
+    window.ProfessorCursorController?.attach?.(instance, instance.professorKey);
+    window.ProfessorUIManipulationController?.attach?.(instance, instance.professorKey);
+    window.ProfessorForcedFocusController?.sync?.();
+    window.ProfessorBreakInterferenceController?.sync?.();
+    window.ProfessorProgressPrankController?.sync?.();
+    window.ProfessorTouchController?.attach?.(instance, instance.professorKey);
     resizeLive2DInstance(instance);
     startLive2DFrameUpdates(instance);
     console.log("[Live2D] model loaded successfully", target.id);
@@ -369,7 +410,15 @@ async function initializeLive2DTarget(target) {
     console.error("[Live2D] target initialization stack:", error?.stack || "(no stack)");
     instance?.resizeObserver?.disconnect?.();
     window.ProfessorStateController?.detach?.(instance);
+    window.ProfessorParameterReactionController?.detach?.(instance);
+    window.ParameterInspectorController?.detach?.(instance);
     window.ProfessorHairController?.detach?.(instance);
+    window.ProfessorProgressPrankController?.stop?.({ immediate: true, rearm: false });
+    window.ProfessorUIManipulationController?.detach?.(instance);
+    window.ProfessorForcedFocusController?.sync?.();
+    window.ProfessorBreakInterferenceController?.sync?.();
+    window.ProfessorCursorController?.detach?.(instance);
+    window.ProfessorTouchController?.detach?.(instance);
     canvas.remove();
     live2dInstances.delete(target.id);
     pixiApp?.destroy?.(true, { children: true, texture: false, baseTexture: false });
@@ -625,7 +674,10 @@ function startLive2DFrameUpdates(instance) {
   instance.live2dTickerUpdate = (ticker) => {
     prepareTransparentLive2DFrame(instance.app);
     window.ProfessorStateController?.update?.(instance, ticker?.deltaMS || 16.67);
+    window.ParameterInspectorController?.update?.(instance, ticker?.deltaMS || 16.67);
     window.ProfessorHairController?.update?.(instance, ticker?.deltaMS || 16.67);
+    window.ProfessorCursorController?.update?.(instance, ticker?.deltaMS || 16.67);
+    window.ProfessorTouchController?.update?.(instance, ticker?.deltaMS || 16.67);
     updateLive2DBreath(instance, ticker?.deltaMS || 16.67);
     updateLive2DLook(instance);
   };
@@ -1061,7 +1113,15 @@ function destroyLive2DInstance(instance) {
   try {
     clearLive2DExpressionResetTimer();
     window.ProfessorStateController?.detach?.(instance);
+    window.ProfessorParameterReactionController?.detach?.(instance);
+    window.ParameterInspectorController?.detach?.(instance);
     window.ProfessorHairController?.detach?.(instance);
+    window.ProfessorProgressPrankController?.stop?.({ immediate: true, rearm: false });
+    window.ProfessorUIManipulationController?.detach?.(instance);
+    window.ProfessorForcedFocusController?.sync?.();
+    window.ProfessorBreakInterferenceController?.sync?.();
+    window.ProfessorCursorController?.detach?.(instance);
+    window.ProfessorTouchController?.detach?.(instance);
     stopLive2DFrameUpdates(instance);
     instance.resizeObserver?.disconnect();
     instance.app?.stop?.();
@@ -1172,8 +1232,8 @@ function startLive2DMouthSync(audioElement, professorKey) {
     return;
   }
 
-  const focusInstance = live2dInstances.get("focus");
-  if (!focusInstance || !audioElement) {
+  const activeInstance = getActiveLive2DInstance();
+  if (!activeInstance || !audioElement) {
     return;
   }
 
@@ -1250,8 +1310,8 @@ function stopLive2DMouthSync() {
 }
 
 function setLive2DMouthOpen(value) {
-  const focusInstance = live2dInstances.get("focus");
-  const coreModel = focusInstance?.model?.internalModel?.coreModel;
+  const activeInstance = getActiveLive2DInstance();
+  const coreModel = activeInstance?.model?.internalModel?.coreModel;
 
   if (!coreModel) {
     return;
@@ -1313,6 +1373,10 @@ function markLive2DParameterMissing(coreModel, parameterId) {
   }
 }
 
+function getDebugLive2DInstance(id = "") {
+  return live2dInstances.get(id) || getActiveLive2DInstance();
+}
+
 window.__professorLive2DDebug = {
   getInstance(id) {
     return live2dInstances.get(id) || null;
@@ -1330,40 +1394,144 @@ window.__professorLive2DDebug = {
     return LIVE2D_BREATH_CONFIG;
   },
   getState(id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorStateController?.getState?.(instance) || null : null;
   },
   setState(stateName, options = {}) {
-    const instance = live2dInstances.get("lobby") || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance();
     return instance ? window.ProfessorStateController?.setState?.(instance, stateName, options) || false : false;
   },
   getTargetState(id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorStateController?.getTargetState?.(instance) || null : null;
   },
   isStateTransitioning(id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? Boolean(window.ProfessorStateController?.isTransitioning?.(instance)) : false;
   },
   resetState(id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorStateController?.reset?.(instance) || false : false;
   },
   getHairState(id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorHairController?.getState?.(instance) || null : null;
   },
   setHairEnabled(enabled, id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorHairController?.setEnabled?.(instance, enabled) || false : false;
   },
   resetHair(id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorHairController?.reset?.(instance) || false : false;
   },
   setHairConfig(config, id = "lobby") {
-    const instance = live2dInstances.get(id) || live2dInstances.get("focus");
+    const instance = getDebugLive2DInstance(id);
     return instance ? window.ProfessorHairController?.setConfig?.(instance, config) || false : false;
+  },
+  setCursorPosition(x, y) {
+    const instance = getDebugLive2DInstance();
+    return instance ? window.ProfessorCursorController?.setPosition?.(instance, x, y) || false : false;
+  },
+  moveCursorTo(x, y, options = {}) {
+    const instance = getDebugLive2DInstance();
+    return instance ? window.ProfessorCursorController?.moveTo?.(instance, x, y, options) || false : false;
+  },
+  resetCursor(options = {}) {
+    const instance = getDebugLive2DInstance();
+    return instance ? window.ProfessorCursorController?.reset?.(instance, options) || false : false;
+  },
+  setCursorEnabled(enabled) {
+    const instance = getDebugLive2DInstance();
+    return instance ? window.ProfessorCursorController?.setEnabled?.(instance, enabled) || false : false;
+  },
+  getCursorState() {
+    const instance = getDebugLive2DInstance();
+    return instance ? window.ProfessorCursorController?.getState?.(instance) || null : null;
+  },
+  lookAtElement(target, options = {}) {
+    return window.ProfessorUIManipulationController?.lookAt?.(target, options) || false;
+  },
+  highlightElement(target, options = {}) {
+    return window.ProfessorUIManipulationController?.highlight?.(target, options) || false;
+  },
+  grabElement(target, options = {}) {
+    return window.ProfessorUIManipulationController?.grab?.(target, options) || false;
+  },
+  moveElement(target, options = {}) {
+    return window.ProfessorUIManipulationController?.move?.(target, options) || false;
+  },
+  restoreElement(target, options = {}) {
+    return window.ProfessorUIManipulationController?.restore?.(target, options) || false;
+  },
+  releaseElement(target, options = {}) {
+    return window.ProfessorUIManipulationController?.release?.(target, options) || false;
+  },
+  resetUIManipulation(options = {}) {
+    return window.ProfessorUIManipulationController?.reset?.(options) || false;
+  },
+  testTelekinesis(target, options = {}) {
+    return window.ProfessorUIManipulationController?.testTelekinesis?.(target, options) || false;
+  },
+  getUIManipulationState() {
+    return window.ProfessorUIManipulationController?.getState?.() || null;
+  },
+  triggerForcedFocus() {
+    return window.ProfessorForcedFocusController?.trigger?.() || false;
+  },
+  getForcedFocusState() {
+    return window.ProfessorForcedFocusController?.getState?.() || null;
+  },
+  resetForcedFocusTimer() {
+    return window.ProfessorForcedFocusController?.resetTimer?.() || false;
+  },
+  triggerBreakInterference() {
+    return window.ProfessorBreakInterferenceController?.trigger?.({ debug: true }) || false;
+  },
+  stopBreakInterference() {
+    return window.ProfessorBreakInterferenceController?.stop?.() || false;
+  },
+  getBreakInterferenceState() {
+    return window.ProfessorBreakInterferenceController?.getState?.() || null;
+  },
+  triggerProgressPrank() {
+    return window.ProfessorProgressPrankController?.trigger?.({ debug: true }) || false;
+  },
+  stopProgressPrank() {
+    return window.ProfessorProgressPrankController?.stop?.({ immediate: true, rearm: false }) || false;
+  },
+  getProgressPrankState() {
+    return window.ProfessorProgressPrankController?.getState?.() || null;
+  },
+  getInactivityState() {
+    const inactivity = window.ProfessorInactivityController?.getState?.() || {};
+    const prank = window.ProfessorProgressPrankController?.getState?.() || {};
+    const forced = window.ProfessorForcedFocusController?.getState?.() || {};
+    return {
+      lastUserInteractionTime: inactivity.lastUserInteractionTime ?? 0,
+      inactiveFor: inactivity.inactiveFor ?? 0,
+      progressPrankThreshold: prank.thresholdMs ?? 10000,
+      forcedFocusThreshold: forced.inactivityMs ?? 300000,
+      progressPrankArmed: prank.armed ?? false,
+      progressPrankState: prank.state ?? "unavailable",
+      forcedFocusState: forced.state ?? "unavailable"
+    };
+  },
+  setTouchDebug(enabled) {
+    const instance = getActiveLive2DInstance();
+    return instance ? window.ProfessorTouchController?.setDebug?.(instance, enabled) || false : false;
+  },
+  getTouchState() {
+    const instance = getActiveLive2DInstance();
+    return instance ? window.ProfessorTouchController?.getDebugState?.(instance) || null : null;
+  },
+  getParameterInspectorState() {
+    const instance = getActiveLive2DInstance();
+    return instance ? window.ParameterInspectorController?.getState?.(instance) || null : null;
+  },
+  getParameterReactionState() {
+    const instance = getActiveLive2DInstance();
+    return instance ? window.ProfessorParameterReactionController?.getState?.(instance) || null : null;
   },
   setExpression(expressionName) {
     return setProfessorExpression(expressionName);
@@ -1376,3 +1544,4 @@ window.__professorLive2DDebug = {
 window.loadProfessorLive2D = loadProfessorLive2D;
 window.setProfessorExpression = setProfessorExpression;
 window.resetProfessorExpression = resetProfessorExpression;
+window.setProfessorLive2DState = setProfessorLive2DState;

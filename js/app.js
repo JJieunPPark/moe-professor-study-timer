@@ -161,7 +161,7 @@ let gameProgress = loadGameProgress();
 let achievementState = loadAchievements();
 let studyStats = loadStudyStats();
 let studentProfile = loadStudentProfile();
-let currentProfessorKey = "database";
+let currentProfessorKey = "os";
 let currentTheme = loadTheme();
 let currentProfessorMode = loadProfessorMode(gameProgress);
 let isMockAnswerMode = loadMockAnswerMode();
@@ -185,6 +185,12 @@ let currentMainMode = "lobby";
 let wheelSelection = "lobby";
 let rouletteNavigationTimer = null;
 let currentQuestionMode = "general";
+let currentLobbyLines = [];
+let lastLobbyLineIndex = -1;
+let isLobbyRandomDialogueEnabled = false;
+let isLive2DTouchDialogueActive = false;
+const lastLive2DTouchLineIndexByProfessor = {};
+const lastLive2DRapidTouchLineIndexByProfessor = {};
 
 const MODE_ROULETTE_MODES = ["lobby", "question", "record", "focus"];
 const MODE_ROULETTE_ANGLES = {
@@ -202,12 +208,14 @@ const timer = new StudyTimer({
     updateDialogue(mode === "focus" ? "start" : "break");
     resumeIdleLineTimer();
     updateButtons();
+    window.ProfessorBreakInterferenceController?.sync?.();
   },
   onPause: () => {
     setProfessorActive(false);
     updateDialogue("pause");
     pauseIdleLineTimer();
     updateButtons();
+    window.ProfessorBreakInterferenceController?.sync?.();
   },
   onReset: (mode, remainingSeconds) => {
     setProfessorActive(false);
@@ -216,6 +224,7 @@ const timer = new StudyTimer({
     updateDialogue("reset");
     clearIdleLineTimer();
     updateButtons();
+    window.ProfessorBreakInterferenceController?.sync?.();
   },
   onModeChange: (mode, remainingSeconds, reason) => {
     setProfessorActive(false);
@@ -226,6 +235,7 @@ const timer = new StudyTimer({
     }
     clearIdleLineTimer();
     updateButtons();
+    window.ProfessorBreakInterferenceController?.sync?.();
   },
   onTick: updateTimerDisplay,
   onFocusComplete: (minutes) => {
@@ -261,11 +271,67 @@ function initializeApp() {
   updateButtons();
   setWheelSelection("lobby");
   setMainMode("lobby");
+  window.ProfessorForcedFocusController?.configure?.({
+    isContextActive: () => (
+      currentProfessorKey === "algorithm"
+      && currentScreen === "home"
+      && currentMainMode === "lobby"
+      && !document.getElementById("bootOpening")
+      && !document.body.classList.contains("focus-mode-active")
+      && !document.body.classList.contains("focus-room-active")
+      && !document.body.classList.contains("record-room-active")
+    ),
+    getFocusButton: () => elements.wheelFocusButton,
+    showDialogue: (text) => {
+      setDialogueText(text, { lobbyRandomMode: "preserve" });
+      resetIdleLineTimer();
+    }
+  });
+  window.ProfessorBreakInterferenceController?.configure?.({
+    isBaseContextActive: () => (
+      currentProfessorKey === "algorithm"
+      && currentScreen === "home"
+      && currentMainMode === "lobby"
+      && !document.getElementById("bootOpening")
+      && !document.body.classList.contains("focus-mode-active")
+      && !document.body.classList.contains("focus-room-active")
+      && !document.body.classList.contains("record-room-active")
+    ),
+    isTimerEligible: () => timer.isRunning && timer.mode === "focus",
+    didBreakSucceed: () => timer.mode === "break",
+    getBreakButton: () => elements.modeToggleButton,
+    getSourceButton: () => elements.startButton,
+    showSuccessDialogue: (text) => {
+      setDialogueText(text, { lobbyRandomMode: "preserve" });
+      resetIdleLineTimer();
+    }
+  });
+  window.ProfessorProgressPrankController?.configure?.({
+    isContextActive: () => (
+      currentProfessorKey === "algorithm"
+      && currentScreen === "home"
+      && currentMainMode === "lobby"
+      && !document.getElementById("bootOpening")
+      && document.body.classList.contains("professor-live2d-active")
+      && !document.body.classList.contains("focus-mode-active")
+      && !document.body.classList.contains("focus-room-active")
+      && !document.body.classList.contains("record-room-active")
+    ),
+    getProgressElement: () => document.querySelector(".royal-progress-card"),
+    setState: (stateName, options) => window.setProfessorLive2DState?.(stateName, options),
+    showDialogue: (text) => {
+      setDialogueText(text, { lobbyRandomMode: "preserve" });
+      resetIdleLineTimer();
+    }
+  });
 
   elements.startButton.addEventListener("click", () => timer.start());
   elements.pauseButton.addEventListener("click", () => timer.pause());
   elements.resetButton.addEventListener("click", () => timer.reset());
   elements.modeToggleButton.addEventListener("click", () => timer.toggleMode());
+  elements.dialogueBubble.addEventListener("click", handleLobbyDialogueClick);
+  document.addEventListener("professor-live2d-touch", handleLive2DRegionTouch);
+  document.addEventListener("professor-live2d-parameter-reaction", handleLive2DParameterReaction);
   elements.enterQuestionButton?.addEventListener("click", openQuestionRoom);
   elements.enterFocusRoomButton?.addEventListener("click", openFocusRoom);
   elements.enterRecordRoomButton?.addEventListener("click", openRecordRoom);
@@ -695,7 +761,7 @@ function cycleTheme() {
 }
 
 function renderSubjectButtons() {
-  SUBJECTS.forEach((subject) => {
+  SUBJECTS.filter((subject) => subject.key !== "database").forEach((subject) => {
     const option = document.createElement("option");
     option.value = subject.key;
     option.textContent = subject.label;
@@ -896,8 +962,11 @@ function selectProfessor(key) {
 
   elements.subjectButtons.value = normalizedKey;
 
-  updateDialogue("select");
+  initializeLobbyDialoguePool(professor);
   applyProfessorMode();
+  window.ProfessorForcedFocusController?.sync?.();
+  window.ProfessorBreakInterferenceController?.sync?.();
+  window.ProfessorProgressPrankController?.sync?.();
   restartIdleLineTimerForProfessor();
 
   setProfessorGif("idle");
@@ -920,7 +989,7 @@ function renderProfessorArt(professorKey) {
 }
 
 function normalizeProfessorSelectionKey(key) {
-  if (PROFESSORS[key]) {
+  if (key !== "database" && PROFESSORS[key]) {
     return key;
   }
 
@@ -928,7 +997,7 @@ function normalizeProfessorSelectionKey(key) {
     return "algorithm";
   }
 
-  return "database";
+  return "os";
 }
 
 function renderMascot(professor) {
@@ -1003,6 +1072,17 @@ function applyProfessorMode(preferredTargetId = "") {
   if (sceneBackground) {
     sceneBackground.style.backgroundImage = lobbyBackground ? `url("${lobbyBackground}")` : "none";
   }
+  const live2dSceneBackground = lobbyBackground && usesDedicatedLive2D
+    ? `url("${lobbyBackground}")`
+    : "none";
+  [
+    document.querySelector(".focus-professor-stage"),
+    document.querySelector(".focus-room-professor")
+  ].forEach((container) => {
+    if (container) {
+      container.style.backgroundImage = live2dSceneBackground;
+    }
+  });
   renderMascot(professor);
 
   const live2dKey = shouldRenderProfessorLive2D(professor, isRoyalMode) ? currentProfessorKey : "";
@@ -1010,7 +1090,13 @@ function applyProfessorMode(preferredTargetId = "") {
 }
 
 function syncProfessorLive2D(professorKey, preferredTargetId = "") {
-  const targetId = preferredTargetId || (document.body.classList.contains("focus-mode-active") ? "focus" : "lobby");
+  const targetId = preferredTargetId || (
+    document.body.classList.contains("focus-room-active")
+      ? "focusRoom"
+      : document.body.classList.contains("focus-mode-active")
+        ? "question"
+        : "lobby"
+  );
 
   if (activeLive2DRenderKey === professorKey && activeLive2DRenderTargetId === targetId) {
     return;
@@ -1360,7 +1446,7 @@ function openFocusMode() {
   setWheelSelection("question");
   pauseIdleLineTimer();
   setActiveScreen("question");
-  applyProfessorMode("focus");
+  applyProfessorMode("question");
   appendQuestionIntroMessage();
   requestAnimationFrame(() => {
     elements.focusChatInput.focus();
@@ -1390,7 +1476,7 @@ function openFocusRoom() {
   setWheelSelection("focus");
   setActiveScreen("focus");
   pauseIdleLineTimer();
-  applyProfessorMode("lobby");
+  applyProfessorMode("focusRoom");
 }
 
 function closeFocusRoom() {
@@ -1398,6 +1484,7 @@ function closeFocusRoom() {
   document.body.classList.remove("focus-room-active");
   setWheelSelection("lobby");
   setActiveScreen("home");
+  applyProfessorMode("lobby");
   resumeIdleLineTimer();
 }
 
@@ -1421,6 +1508,9 @@ function closeRecordRoom() {
 function setActiveScreen(screen) {
   currentScreen = screen || "home";
   window.ProfessorScreenManager?.setScreen?.(currentScreen);
+  window.ProfessorForcedFocusController?.sync?.();
+  window.ProfessorBreakInterferenceController?.sync?.();
+  window.ProfessorProgressPrankController?.sync?.();
 }
 
 function requestCloseFocusMode() {
@@ -1812,7 +1902,128 @@ function updateDialogue(type) {
   setDialogueText(professor.dialogues[type] || professor.quote);
 }
 
-function setDialogueText(text) {
+function initializeLobbyDialoguePool(professor) {
+  currentLobbyLines = Array.isArray(professor?.lobbyLines)
+    ? professor.lobbyLines.filter((entry) => typeof entry?.text === "string" && entry.text.trim())
+    : [];
+  const initialText = professor.dialogues?.select || professor.quote;
+  lastLobbyLineIndex = currentLobbyLines.findIndex((entry) => entry.text === initialText);
+  isLobbyRandomDialogueEnabled = currentLobbyLines.length > 0;
+  setDialogueText(initialText, {
+    lobbyRandomMode: isLobbyRandomDialogueEnabled ? "enable" : "disable"
+  });
+}
+
+function renderLobbyLine(entry) {
+  if (!entry?.text) {
+    return false;
+  }
+
+  setDialogueText(entry.text, { lobbyRandomMode: "preserve" });
+  if (entry.state && typeof window.setProfessorLive2DState === "function") {
+    window.setProfessorLive2DState(entry.state, entry.stateOptions || {});
+  }
+  return true;
+}
+
+function showRandomLobbyLine() {
+  if (!isLobbyRandomDialogueEnabled || currentLobbyLines.length === 0) {
+    return false;
+  }
+
+  let nextIndex = Math.floor(Math.random() * currentLobbyLines.length);
+  if (currentLobbyLines.length > 1) {
+    do {
+      nextIndex = Math.floor(Math.random() * currentLobbyLines.length);
+    } while (nextIndex === lastLobbyLineIndex);
+  }
+
+  lastLobbyLineIndex = nextIndex;
+  return renderLobbyLine(currentLobbyLines[nextIndex]);
+}
+
+function handleLive2DRegionTouch(event) {
+  const professorKey = event?.detail?.professorKey;
+  const region = event?.detail?.region;
+  const rapid = event?.detail?.rapid === true;
+  if (
+    currentScreen !== "home"
+    || currentMainMode !== "lobby"
+    || professorKey !== currentProfessorKey
+  ) {
+    return;
+  }
+
+  const professor = PROFESSORS[professorKey];
+  const lines = (rapid
+    ? professor?.live2dRapidTouch?.[region]?.lines
+    : professor?.live2dTouchLines?.[region])
+    ?.filter((entry) => typeof entry?.text === "string" && entry.text.trim()) || [];
+  if (lines.length === 0) {
+    return;
+  }
+
+  const indexStore = rapid
+    ? lastLive2DRapidTouchLineIndexByProfessor
+    : lastLive2DTouchLineIndexByProfessor;
+  const professorLastIndices = indexStore[professorKey]
+    || (indexStore[professorKey] = {});
+  let nextIndex = Math.floor(Math.random() * lines.length);
+  if (lines.length > 1) {
+    do {
+      nextIndex = Math.floor(Math.random() * lines.length);
+    } while (nextIndex === professorLastIndices[region]);
+  }
+
+  professorLastIndices[region] = nextIndex;
+  setDialogueText(lines[nextIndex].text, { live2dTouch: true });
+  resetIdleLineTimer();
+}
+
+function handleLive2DParameterReaction(event) {
+  const detail = event?.detail;
+  if (
+    currentScreen !== "home"
+    || currentMainMode !== "lobby"
+    || currentProfessorKey !== "algorithm"
+    || detail?.professorKey !== "algorithm"
+    || typeof detail?.text !== "string"
+  ) {
+    return;
+  }
+  if (detail.state && typeof window.setProfessorLive2DState === "function") {
+    window.setProfessorLive2DState(detail.state, detail.stateOptions || {});
+  }
+  setDialogueText(detail.text, { parameterReaction: true });
+  resetIdleLineTimer();
+}
+
+function handleLobbyDialogueClick() {
+  if (
+    currentScreen !== "home"
+    || currentMainMode !== "lobby"
+  ) {
+    return;
+  }
+  if (isLive2DTouchDialogueActive) {
+    isLive2DTouchDialogueActive = false;
+    isLobbyRandomDialogueEnabled = currentLobbyLines.length > 0;
+    showRandomLobbyLine();
+    return;
+  }
+  if (!isLobbyRandomDialogueEnabled) {
+    return;
+  }
+  showRandomLobbyLine();
+}
+
+function setDialogueText(text, options = {}) {
+  isLive2DTouchDialogueActive = options.live2dTouch === true || options.parameterReaction === true;
+  if (options.lobbyRandomMode === "enable") {
+    isLobbyRandomDialogueEnabled = currentLobbyLines.length > 0;
+  } else if (options.lobbyRandomMode !== "preserve") {
+    isLobbyRandomDialogueEnabled = false;
+  }
   elements.dialogueText.textContent = text;
   elements.dialogueBubble.classList.remove("dialogue-pop");
   void elements.dialogueBubble.offsetWidth;
@@ -1833,7 +2044,10 @@ function initializeIdleLineDebugTools() {
 }
 
 function canRunIdleLineTimer() {
-  if (currentMainMode !== "lobby" || document.body.classList.contains("focus-mode-active")) {
+  if (
+    currentMainMode !== "lobby"
+    || document.body.classList.contains("focus-mode-active")
+  ) {
     return false;
   }
 
@@ -1925,7 +2139,7 @@ function showIdleProfessorLine() {
   }
 
   lastIdleLineByProfessor[currentProfessorKey] = nextLine;
-  setDialogueText(nextLine);
+  setDialogueText(nextLine, { lobbyRandomMode: "enable" });
   console.log("[IdleLine] tick", {
     professorId: currentProfessorKey,
     previousLine,

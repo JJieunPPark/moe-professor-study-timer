@@ -27,6 +27,16 @@ npm run dev
 
 브라우저에서 `http://localhost:3000`에 접속합니다.
 
+프로덕션 정적 파일을 생성하고 로컬에서 확인하려면 다음 명령을 사용합니다.
+
+```bash
+npm run build
+npm run preview
+```
+
+프로덕션 미리보기는 기본적으로 `http://localhost:4173`에서 실행됩니다. Vercel에는
+`OPENAI_API_KEY`, `OPENAI_BASE_URL`, 필요 시 `OPENAI_MODEL`을 서버 환경 변수로 등록합니다.
+
 ## 파일 구조
 
 ```text

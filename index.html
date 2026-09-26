@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/opening.css">
   <link rel="stylesheet" href="css/infoPopups.css">
+  <link rel="stylesheet" href="css/parameterInspector.css">
 </head>
 <body>
   <audio id="global-bgm" src="/audio/bgm/main-theme.mp3" preload="auto" loop></audio>
@@ -138,6 +139,19 @@
             <button id="resetButton" type="button">다시 준비</button>
           </div>
         </section>
+
+        <aside id="parameterInspector" class="parameter-inspector" aria-label="Live2D Parameter Inspector" hidden>
+          <section class="parameter-inspector__panel">
+            <header class="parameter-inspector__header">
+              <div>
+                <span>LIVE2D</span>
+                <strong>Parameter Inspector</strong>
+              </div>
+              <button id="parameterInspectorCollapse" type="button" aria-label="Parameter Inspector 접기" aria-expanded="true">−</button>
+            </header>
+            <div id="parameterInspectorRows" class="parameter-inspector__rows"></div>
+          </section>
+        </aside>
 
         <section class="subject-panel game-card" aria-labelledby="subjectTitle">
           <div class="section-heading">
@@ -299,6 +313,7 @@
     <div class="focus-room-layout">
       <section class="focus-room-professor" aria-label="현재 교수">
         <img id="focusRoomProfessorGif" class="focus-room-professor-gif" src="" alt="">
+        <div id="focusRoomLive2DStage" class="live2d-stage live2d-focus-room-stage" aria-hidden="true"></div>
         <div class="focus-name-cutin focus-room-name">
           <strong id="focusRoomKanjiName">白鳥 出絵太</strong>
           <span id="focusRoomKoreanName">시라토리 데에타</span>
@@ -419,7 +434,6 @@
 
   <div id="successEffect" class="success-effect" aria-hidden="true">Session Complete</div>
   <div id="infoPopupMount" class="info-popup-mount" aria-live="polite"></div>
-
   <script src="js/professors.js"></script>
   <script src="js/achievementsData.js"></script>
   <script src="js/professorIdleLines.js"></script>
@@ -438,6 +452,15 @@
   <script src="/vendor/naari-pixi-live2d-display/cubism5.min.js"></script>
     <script src="js/live2d/professorStateController.js"></script>
     <script src="js/live2d/hairParameterController.js"></script>
+    <script src="js/live2d/cursorParameterController.js"></script>
+    <script src="js/live2d/professorUIManipulationController.js"></script>
+    <script src="js/live2d/professorInactivityController.js"></script>
+    <script src="js/live2d/professorForcedFocusController.js"></script>
+    <script src="js/live2d/professorBreakInterferenceController.js"></script>
+    <script src="js/live2d/professorProgressPrankController.js"></script>
+    <script src="js/live2d/professorTouchController.js"></script>
+    <script src="js/live2d/professorParameterReactionController.js"></script>
+    <script src="js/live2d/parameterInspectorController.js"></script>
     <script src="js/live2dManager.js"></script>
   <script src="js/ui/sceneCamera.js"></script>
   <script src="js/ui/touchDistortion.js"></script>

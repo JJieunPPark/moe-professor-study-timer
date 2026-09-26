@@ -1,0 +1,125 @@
+.parameter-inspector {
+  order: 3;
+  display: flex;
+  flex: 0 1 clamp(260px, 36vh, 360px);
+  flex-direction: column;
+  width: var(--right-hud-width);
+  min-height: 44px;
+  max-height: 100%;
+  color: #132d52;
+  font-family: inherit;
+}
+
+.parameter-inspector[hidden] {
+  display: none;
+}
+
+.parameter-inspector__panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(19, 45, 82, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 34px rgba(23, 38, 67, 0.18);
+}
+
+.parameter-inspector__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 11px;
+  border-bottom: 1px solid rgba(19, 45, 82, 0.12);
+}
+
+.parameter-inspector__header div {
+  display: grid;
+  gap: 1px;
+}
+
+.parameter-inspector__header span {
+  color: var(--accent, #b5447e);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.parameter-inspector__header strong {
+  font-size: 12px;
+}
+
+.parameter-inspector__header button {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(19, 45, 82, 0.08);
+  color: inherit;
+  font: 800 16px/1 inherit;
+}
+
+.parameter-inspector__rows {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 11px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.parameter-inspector__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.parameter-inspector__row label,
+.parameter-inspector__value {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.parameter-inspector__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.parameter-inspector__row input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent, #b5447e);
+}
+
+.parameter-inspector.is-state-owned .parameter-inspector__panel {
+  outline: 2px solid rgba(255, 212, 92, 0.8);
+}
+
+.parameter-inspector.is-collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.parameter-inspector.is-collapsed .parameter-inspector__rows {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .parameter-inspector {
+    width: var(--right-hud-width);
+  }
+}
+
+@media (max-height: 1000px) {
+  body.professor-live2d-active.main-mode-lobby .control-zone {
+    padding-top: 28px;
+  }
+}
