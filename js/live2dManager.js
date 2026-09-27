@@ -1112,6 +1112,7 @@ function destroyInactiveLive2DTargets(activeTargetId) {
 function destroyLive2DInstance(instance) {
   try {
     clearLive2DExpressionResetTimer();
+    window.ProfessorVoiceController?.handleInstanceDetach?.(instance);
     window.ProfessorStateController?.detach?.(instance);
     window.ProfessorParameterReactionController?.detach?.(instance);
     window.ParameterInspectorController?.detach?.(instance);

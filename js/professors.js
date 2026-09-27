@@ -314,6 +314,17 @@ const PROFESSORS = {
       no: "괜찮습니다. 알고리즘은 원래 한 번에 안 잡힙니다. 어디서 꼬였는지 같이 풀죠."
     },
 
+    understandingStateReactions: {
+      yes: {
+        state: "LAUGH",
+        stateOptions: { duration: 200, hold: 1100, returnTo: "NORMAL" }
+      },
+      no: {
+        state: "DISGUSTED",
+        stateOptions: { duration: 180, hold: 1200, returnTo: "NORMAL" }
+      }
+    },
+
     interactions: {
       touch: [
         { id: "algorithm_touch_01", text: "부르셨습니까? 문제보다 저를 먼저 누르는 전략이네요. 농담입니다.", expression: "smile", voiceEvent: "touch" },

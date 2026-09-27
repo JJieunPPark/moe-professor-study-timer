@@ -1,7 +1,31 @@
-const VOICE_VOLUME = 0.5;
+const ALGORITHM_VOICE_VOLUME_KEY = "algorithmProfessorVoiceVolume";
+const DEFAULT_ALGORITHM_VOICE_VOLUME = 0.7;
+const DEFAULT_PROFESSOR_VOICE_VOLUME = 0.5;
+const ALGORITHM_VOICE_POOLS = Object.freeze({
+  answer: ["005_", "006_", "009_"],
+  touch: ["001_", "002_", "003_", "004_", "007_", "008_"]
+});
 
 const voiceFileCache = new Map();
-const lastVoiceByProfessorKey = new Map();
+const lastVoiceByPool = new Map();
+let currentVoiceAudio = null;
+let currentPlayRequestId = 0;
+
+function clampVoiceVolume(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : DEFAULT_ALGORITHM_VOICE_VOLUME;
+}
+
+function loadAlgorithmVoiceVolume() {
+  try {
+    const stored = localStorage.getItem(ALGORITHM_VOICE_VOLUME_KEY);
+    return stored === null ? DEFAULT_ALGORITHM_VOICE_VOLUME : clampVoiceVolume(stored);
+  } catch (error) {
+    return DEFAULT_ALGORITHM_VOICE_VOLUME;
+  }
+}
+
+let algorithmVoiceVolume = loadAlgorithmVoiceVolume();
 
 async function loadProfessorVoiceFiles(professorKey) {
   if (voiceFileCache.has(professorKey)) {
@@ -31,49 +55,129 @@ function chooseProfessorVoice(professorKey, files, eventName = "") {
   }
 
   const normalizedEvent = String(eventName || "").toLowerCase();
-  const eventFiles = normalizedEvent
-    ? files.filter((file) => file.toLowerCase().includes(normalizedEvent.toLowerCase()))
-    : [];
+  const prefixes = professorKey === "algorithm" ? ALGORITHM_VOICE_POOLS[normalizedEvent] : null;
+  const eventFiles = prefixes
+    ? files.filter((file) => prefixes.some((prefix) => decodeURIComponent(file).split("/").pop()?.startsWith(prefix)))
+    : normalizedEvent
+      ? files.filter((file) => file.toLowerCase().includes(normalizedEvent))
+      : [];
   const sourceFiles = eventFiles.length > 0 ? eventFiles : files;
 
   if (sourceFiles.length === 1) {
     return sourceFiles[0];
   }
 
-  const lastVoice = lastVoiceByProfessorKey.get(professorKey);
+  const poolKey = `${professorKey}:${normalizedEvent || "default"}`;
+  const lastVoice = lastVoiceByPool.get(poolKey);
   const candidates = sourceFiles.filter((file) => file !== lastVoice);
   const pool = candidates.length > 0 ? candidates : sourceFiles;
   const index = Math.floor(Math.random() * pool.length);
-  return pool[index];
+  const selected = pool[index];
+  lastVoiceByPool.set(poolKey, selected);
+  return selected;
+}
+
+function stopProfessorVoice() {
+  currentPlayRequestId += 1;
+  if (currentVoiceAudio) {
+    currentVoiceAudio.pause();
+    try {
+      currentVoiceAudio.currentTime = 0;
+    } catch (error) {
+      // Some browsers reject currentTime changes before metadata is available.
+    }
+    currentVoiceAudio.removeAttribute("src");
+    currentVoiceAudio.load();
+    currentVoiceAudio = null;
+  }
+  if (typeof stopLive2DMouthSync === "function") {
+    stopLive2DMouthSync();
+  }
+}
+
+function getProfessorVoiceVolume(professorKey = "algorithm") {
+  return professorKey === "algorithm" ? algorithmVoiceVolume : DEFAULT_PROFESSOR_VOICE_VOLUME;
+}
+
+function setProfessorVoiceVolume(value) {
+  algorithmVoiceVolume = clampVoiceVolume(value);
+  try {
+    localStorage.setItem(ALGORITHM_VOICE_VOLUME_KEY, String(algorithmVoiceVolume));
+  } catch (error) {
+    // Storage can be unavailable in privacy modes; playback should still work.
+  }
+  if (currentVoiceAudio) {
+    currentVoiceAudio.volume = algorithmVoiceVolume;
+  }
+  return algorithmVoiceVolume;
 }
 
 async function playProfessorVoice(professorKey, eventName = "") {
+  const requestId = currentPlayRequestId + 1;
+  stopProfessorVoice();
+  currentPlayRequestId = requestId;
+
   try {
     const files = await loadProfessorVoiceFiles(professorKey);
+    if (requestId !== currentPlayRequestId) {
+      return false;
+    }
     const voiceFile = chooseProfessorVoice(professorKey, files, eventName);
 
     if (!voiceFile) {
-      return;
+      return false;
     }
 
-    lastVoiceByProfessorKey.set(professorKey, voiceFile);
-
     const voiceAudio = new Audio(voiceFile);
-    voiceAudio.volume = VOICE_VOLUME;
-    voiceAudio.play().then(() => {
+    voiceAudio.volume = getProfessorVoiceVolume(professorKey);
+    currentVoiceAudio = voiceAudio;
+    voiceAudio.addEventListener("ended", () => {
+      if (currentVoiceAudio === voiceAudio) {
+        currentVoiceAudio = null;
+        stopLive2DMouthSync?.();
+      }
+    }, { once: true });
+
+    try {
+      await voiceAudio.play();
+      if (requestId !== currentPlayRequestId || currentVoiceAudio !== voiceAudio) {
+        voiceAudio.pause();
+        return false;
+      }
       if (typeof startLive2DMouthSync === "function") {
         startLive2DMouthSync(voiceAudio, professorKey);
       }
-    }).catch(() => {
+      return true;
+    } catch (error) {
+      if (currentVoiceAudio === voiceAudio) {
+        currentVoiceAudio = null;
+      }
       if (typeof stopLive2DMouthSync === "function") {
         stopLive2DMouthSync();
       }
-      // Missing files, unsupported audio, or autoplay limits should not interrupt study flow.
-    });
+      return false;
+    }
   } catch (error) {
     if (typeof stopLive2DMouthSync === "function") {
       stopLive2DMouthSync();
     }
-    // Voice playback is optional and must never break chat or timer features.
+    return false;
   }
 }
+
+function handleProfessorVoiceInstanceDetach(instance) {
+  if (instance?.professorKey === "algorithm") {
+    stopProfessorVoice();
+  }
+}
+
+window.ProfessorVoiceController = Object.freeze({
+  play: playProfessorVoice,
+  stop: stopProfessorVoice,
+  getVolume: () => getProfessorVoiceVolume("algorithm"),
+  setVolume: setProfessorVoiceVolume,
+  handleInstanceDetach: handleProfessorVoiceInstanceDetach
+});
+
+window.addEventListener("pagehide", stopProfessorVoice);
+window.addEventListener("beforeunload", stopProfessorVoice);

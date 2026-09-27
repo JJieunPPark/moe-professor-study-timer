@@ -1199,34 +1199,32 @@ body.royal-mode .professor-star {
   color: color-mix(in srgb, #173760 54%, white);
 }
 
-.mock-mode-toggle {
+.voice-control {
   min-width: 0;
   min-height: var(--bottom-bar-height);
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 8px 10px;
+  gap: 4px;
+  padding: 0 8px;
   border: 1px solid rgba(40, 60, 86, 0.24);
   background: rgba(255, 255, 255, 0.82);
   color: #173760;
-  font-size: 14px;
+}
+
+.voice-title {
+  font-size: 13px;
   font-weight: 900;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  user-select: none;
+  text-align: center;
 }
 
-.mock-mode-toggle input {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--theme-accent);
-  cursor: pointer;
+.voice-volume-control {
+  min-width: 0;
+  padding: 7px 0;
 }
 
-.mock-mode-toggle:has(input:checked) {
-  color: #2f2200;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 34%, white), color-mix(in srgb, var(--theme-accent) 72%, white));
+.voice-control[aria-disabled="true"] {
+  opacity: 0.55;
 }
 
 .test-question-button {

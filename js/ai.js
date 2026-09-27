@@ -49,10 +49,10 @@ function createDeveloperMockAnswer(professorKey) {
   return replies[index];
 }
 
-async function replyProvider({ professorKey, professor, question, studentProfile, questionMode = "general", mockMode = false }) {
+async function replyProviderWithMeta({ professorKey, professor, question, studentProfile, questionMode = "general", mockMode = false }) {
   if (mockMode) {
     await waitForMockReplyDelay();
-    return createDeveloperMockAnswer(professorKey);
+    return { answer: createDeveloperMockAnswer(professorKey), source: "mock" };
   }
 
   return requestOpenAiProfessorReply({ professorKey, professor, question, studentProfile, questionMode });
@@ -96,15 +96,23 @@ async function requestOpenAiProfessorReply({ professorKey, professor, question, 
     }
 
     const data = await response.json();
-    return data.answer || createMockProfessorAnswer(professor, question);
+    if (typeof data.answer === "string" && data.answer.trim()) {
+      return { answer: data.answer, source: "api" };
+    }
+    return { answer: createMockProfessorAnswer(professor, question), source: "fallback" };
   } catch (error) {
     console.warn("AI chat fallback:", error);
-    return createMockProfessorAnswer(professor, question);
+    return { answer: createMockProfessorAnswer(professor, question), source: "fallback" };
   }
 }
 
 async function askProfessor(request) {
-  return replyProvider(request);
+  const result = await replyProviderWithMeta(request);
+  return result.answer;
+}
+
+async function askProfessorWithMeta(request) {
+  return replyProviderWithMeta(request);
 }
 
 // TODO: 실제 OpenAI 프롬프트 구성과 API 호출은 server.js에서 관리합니다.

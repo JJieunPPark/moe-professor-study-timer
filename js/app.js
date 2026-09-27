@@ -20,6 +20,8 @@
   bgmToggleButton: document.getElementById("bgmToggleButton"),
   bgmVolumeSlider: document.getElementById("bgmVolumeSlider"),
   mockModeToggle: document.getElementById("mockModeToggle"),
+  voiceVolumeControl: document.getElementById("algorithmVoiceControl"),
+  voiceVolumeSlider: document.getElementById("algorithmVoiceVolumeSlider"),
   testQuestionButton: document.getElementById("testQuestionButton"),
   musicInfoButton: document.getElementById("musicInfoButton"),
   musicInfoPopover: document.getElementById("musicInfoPopover"),
@@ -359,7 +361,8 @@ function initializeApp() {
   elements.professorModeButton.addEventListener("click", toggleProfessorMode);
   elements.bgmToggleButton.addEventListener("click", toggleBgm);
   elements.bgmVolumeSlider.addEventListener("input", handleBgmVolumeChange);
-  elements.mockModeToggle.addEventListener("change", handleMockModeChange);
+  elements.mockModeToggle?.addEventListener("change", handleMockModeChange);
+  elements.voiceVolumeSlider?.addEventListener("input", handleVoiceVolumeChange);
   elements.testQuestionButton.addEventListener("click", handleTestQuestionClick);
   elements.musicInfoButton.addEventListener("click", toggleMusicInfoPopover);
   elements.closeMusicInfoButton.addEventListener("click", closeMusicInfoPopover);
@@ -407,7 +410,7 @@ function ensureOperationalUi() {
     elements.achievementButton.textContent = "업적";
   }
 
-  ensureMockModeToggle();
+  ensureVoiceVolumeControl();
   ensureTestQuestionButton();
 
   const statsGrid = document.querySelector(".stats-grid");
@@ -437,9 +440,10 @@ function ensureOperationalUi() {
   ensureAchievementToast();
 }
 
-function ensureMockModeToggle() {
-  if (elements.mockModeToggle) {
-    elements.mockModeToggle.checked = isMockAnswerMode;
+function ensureVoiceVolumeControl() {
+  if (elements.voiceVolumeControl && elements.voiceVolumeSlider) {
+    elements.voiceVolumeSlider.value = String(Math.round((window.ProfessorVoiceController?.getVolume?.() ?? 0.7) * 100));
+    updateVoiceVolumeControl();
     return;
   }
 
@@ -449,22 +453,51 @@ function ensureMockModeToggle() {
     return;
   }
 
-  const label = document.createElement("label");
-  label.className = "mock-mode-toggle";
-  label.setAttribute("for", "mockModeToggle");
+  const control = document.createElement("div");
+  control.id = "algorithmVoiceControl";
+  control.className = "voice-control";
 
-  const checkbox = document.createElement("input");
-  checkbox.id = "mockModeToggle";
-  checkbox.type = "checkbox";
-  checkbox.checked = isMockAnswerMode;
+  const title = document.createElement("span");
+  title.className = "voice-title";
+  title.textContent = "VOICE";
 
-  const text = document.createElement("span");
-  text.textContent = "Mock Answer Mode";
+  const volume = document.createElement("label");
+  volume.className = "bgm-volume-control voice-volume-control";
+  volume.setAttribute("for", "algorithmVoiceVolumeSlider");
 
-  label.appendChild(checkbox);
-  label.appendChild(text);
-  commandRow.insertBefore(label, llmForm);
-  elements.mockModeToggle = checkbox;
+  const volumeLabel = document.createElement("span");
+  volumeLabel.textContent = "VOL";
+
+  const slider = document.createElement("input");
+  slider.id = "algorithmVoiceVolumeSlider";
+  slider.type = "range";
+  slider.min = "0";
+  slider.max = "100";
+  slider.step = "1";
+  slider.value = String(Math.round((window.ProfessorVoiceController?.getVolume?.() ?? 0.7) * 100));
+  slider.setAttribute("aria-label", "알고리즘 교수 음성 볼륨");
+
+  volume.append(volumeLabel, slider);
+  control.append(title, volume);
+  commandRow.insertBefore(control, llmForm);
+  elements.voiceVolumeControl = control;
+  elements.voiceVolumeSlider = slider;
+  updateVoiceVolumeControl();
+}
+
+function updateVoiceVolumeControl() {
+  const enabled = currentProfessorKey === "algorithm";
+  if (elements.voiceVolumeControl) {
+    elements.voiceVolumeControl.setAttribute("aria-disabled", String(!enabled));
+  }
+  if (elements.voiceVolumeSlider) {
+    elements.voiceVolumeSlider.disabled = !enabled;
+  }
+}
+
+function handleVoiceVolumeChange() {
+  const volume = Number(elements.voiceVolumeSlider?.value ?? 70) / 100;
+  window.ProfessorVoiceController?.setVolume?.(volume);
 }
 
 function ensureTestQuestionButton() {
@@ -942,6 +975,9 @@ function selectProfessor(key) {
   clearUnderstandingCheck();
   resetUnderstandingExpression();
   const normalizedKey = normalizeProfessorSelectionKey(key);
+  if (currentProfessorKey !== normalizedKey) {
+    window.ProfessorVoiceController?.stop?.();
+  }
   currentProfessorKey = normalizedKey;
   window.currentProfessorKey = normalizedKey;
   window.ProfessorStudyStore?.setProfessor?.(normalizedKey);
@@ -961,6 +997,7 @@ function selectProfessor(key) {
   syncFocusRoomProfessor(professor);
 
   elements.subjectButtons.value = normalizedKey;
+  updateVoiceVolumeControl();
 
   initializeLobbyDialoguePool(professor);
   applyProfessorMode();
@@ -1277,14 +1314,27 @@ async function sendMessage(question, submitButton) {
   submitButton.disabled = true;
 
   try {
-    const answer = await askProfessor({
-      professorKey: currentProfessorKey,
-      professor,
-      question,
-      studentProfile,
-      questionMode: currentQuestionMode,
-      mockMode: isMockAnswerMode
-    });
+    const reply = typeof askProfessorWithMeta === "function"
+      ? await askProfessorWithMeta({
+        professorKey: currentProfessorKey,
+        professor,
+        question,
+        studentProfile,
+        questionMode: currentQuestionMode,
+        mockMode: isMockAnswerMode
+      })
+      : {
+        answer: await askProfessor({
+          professorKey: currentProfessorKey,
+          professor,
+          question,
+          studentProfile,
+          questionMode: currentQuestionMode,
+          mockMode: isMockAnswerMode
+        }),
+        source: "unknown"
+      };
+    const answer = reply.answer;
     if (requestId !== activeRequestId) {
       return;
     }
@@ -1294,7 +1344,9 @@ async function sendMessage(question, submitButton) {
     resetIdleLineTimer();
     setProfessorVisualExpression("happy");
     showUnderstandingCheck(professorMessage);
-    playProfessorVoice(currentProfessorKey);
+    if (currentProfessorKey !== "algorithm" || reply.source === "api") {
+      playProfessorVoice(currentProfessorKey, currentProfessorKey === "algorithm" ? "answer" : "");
+    }
   } catch (error) {
     if (requestId !== activeRequestId) {
       return;
@@ -1391,6 +1443,12 @@ function handleUnderstandingCheck(understood, checkElement) {
   setProfessorGif(gifState);
   setProfessorVisualExpression(expression);
   applyLive2DUnderstandingExpression(expression, understood);
+  if (currentProfessorKey === "algorithm") {
+    const reaction = professor.understandingStateReactions?.[understood ? "yes" : "no"];
+    if (reaction?.state) {
+      window.setProfessorLive2DState?.(reaction.state, reaction.stateOptions);
+    }
+  }
   appendChatMessage("professor", line);
   recordLessonMessage("professor", line);
   setDialogueText(line);
@@ -1506,7 +1564,11 @@ function closeRecordRoom() {
 }
 
 function setActiveScreen(screen) {
-  currentScreen = screen || "home";
+  const nextScreen = screen || "home";
+  if (currentScreen !== nextScreen && currentProfessorKey === "algorithm") {
+    window.ProfessorVoiceController?.stop?.();
+  }
+  currentScreen = nextScreen;
   window.ProfessorScreenManager?.setScreen?.(currentScreen);
   window.ProfessorForcedFocusController?.sync?.();
   window.ProfessorBreakInterferenceController?.sync?.();
@@ -1955,6 +2017,9 @@ function handleLive2DRegionTouch(event) {
   }
 
   const professor = PROFESSORS[professorKey];
+  if (professorKey === "algorithm") {
+    window.ProfessorVoiceController?.play?.("algorithm", "touch");
+  }
   const lines = (rapid
     ? professor?.live2dRapidTouch?.[region]?.lines
     : professor?.live2dTouchLines?.[region])
