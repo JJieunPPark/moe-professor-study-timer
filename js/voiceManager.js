@@ -5,11 +5,28 @@ const ALGORITHM_VOICE_POOLS = Object.freeze({
   answer: ["005_", "006_", "009_"],
   touch: ["001_", "002_", "003_", "004_", "007_", "008_"]
 });
+const ALGORITHM_VOICE_FILE_NAMES = Object.freeze([
+  "001_冥鳴ひまり（ノーマル）_……冗談、冗談。.wav",
+  "002_冥鳴ひまり（ノーマル）_お腹いっぱいで眠い….wav",
+  "003_冥鳴ひまり（ノーマル）_……冗談ですよ、冗….wav",
+  "004_冥鳴ひまり（ノーマル）_まだ解けない？ 大….wav",
+  "005_冥鳴ひまり（ノーマル）_正解です。.wav",
+  "006_冥鳴ひまり（ノーマル）_お見事。.wav",
+  "007_冥鳴ひまり（ノーマル）_……そんな顔しなく….wav",
+  "008_冥鳴ひまり（ノーマル）_分からなかった？ ….wav",
+  "009_冥鳴ひまり（ノーマル）_私、説明上手なので。.wav"
+]);
+const ALGORITHM_VOICE_FILES = Object.freeze(
+  ALGORITHM_VOICE_FILE_NAMES.map((fileName) => `/public/audio/voice/algorithm/${encodeURIComponent(fileName)}`)
+);
 
 const voiceFileCache = new Map();
 const lastVoiceByPool = new Map();
 let currentVoiceAudio = null;
 let currentPlayRequestId = 0;
+let voiceAudioElement = null;
+let voiceAudioUnlocked = false;
+let voiceUnlockPromise = null;
 
 function clampVoiceVolume(value) {
   const number = Number(value);
@@ -28,6 +45,10 @@ function loadAlgorithmVoiceVolume() {
 let algorithmVoiceVolume = loadAlgorithmVoiceVolume();
 
 async function loadProfessorVoiceFiles(professorKey) {
+  if (professorKey === "algorithm") {
+    return ALGORITHM_VOICE_FILES;
+  }
+
   if (voiceFileCache.has(professorKey)) {
     return voiceFileCache.get(professorKey);
   }
@@ -47,6 +68,21 @@ async function loadProfessorVoiceFiles(professorKey) {
     voiceFileCache.set(professorKey, []);
     return [];
   }
+}
+
+function getProfessorVoiceFilesImmediately(professorKey) {
+  if (professorKey === "algorithm") {
+    return ALGORITHM_VOICE_FILES;
+  }
+  return voiceFileCache.get(professorKey) || null;
+}
+
+function getVoiceAudioElement() {
+  if (!voiceAudioElement) {
+    voiceAudioElement = new Audio();
+    voiceAudioElement.preload = "auto";
+  }
+  return voiceAudioElement;
 }
 
 function chooseProfessorVoice(professorKey, files, eventName = "") {
@@ -86,13 +122,44 @@ function stopProfessorVoice() {
     } catch (error) {
       // Some browsers reject currentTime changes before metadata is available.
     }
-    currentVoiceAudio.removeAttribute("src");
-    currentVoiceAudio.load();
     currentVoiceAudio = null;
   }
   if (typeof stopLive2DMouthSync === "function") {
     stopLive2DMouthSync();
   }
+}
+
+function unlockProfessorVoice() {
+  if (voiceAudioUnlocked) {
+    return Promise.resolve(true);
+  }
+  if (voiceUnlockPromise) {
+    return voiceUnlockPromise;
+  }
+
+  const voiceAudio = getVoiceAudioElement();
+  const unlockRequestId = currentPlayRequestId;
+  const previousVolume = voiceAudio.volume;
+  voiceAudio.src = ALGORITHM_VOICE_FILES[0];
+  voiceAudio.volume = 0;
+  voiceAudio.muted = false;
+  voiceUnlockPromise = voiceAudio.play()
+    .then(() => {
+      if (currentPlayRequestId !== unlockRequestId || currentVoiceAudio === voiceAudio) {
+        voiceAudioUnlocked = true;
+        return true;
+      }
+      voiceAudio.pause();
+      voiceAudio.currentTime = 0;
+      voiceAudio.volume = previousVolume;
+      voiceAudioUnlocked = true;
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      voiceUnlockPromise = null;
+    });
+  return voiceUnlockPromise;
 }
 
 function getProfessorVoiceVolume(professorKey = "algorithm") {
@@ -112,43 +179,37 @@ function setProfessorVoiceVolume(value) {
   return algorithmVoiceVolume;
 }
 
-async function playProfessorVoice(professorKey, eventName = "") {
-  const requestId = currentPlayRequestId + 1;
-  stopProfessorVoice();
-  currentPlayRequestId = requestId;
+function startProfessorVoicePlayback(professorKey, eventName, files, requestId) {
+  const voiceFile = chooseProfessorVoice(professorKey, files, eventName);
+  if (!voiceFile || requestId !== currentPlayRequestId) {
+    return Promise.resolve(false);
+  }
 
-  try {
-    const files = await loadProfessorVoiceFiles(professorKey);
-    if (requestId !== currentPlayRequestId) {
-      return false;
+  const voiceAudio = getVoiceAudioElement();
+  voiceAudio.src = voiceFile;
+  voiceAudio.volume = getProfessorVoiceVolume(professorKey);
+  voiceAudio.muted = false;
+  currentVoiceAudio = voiceAudio;
+  voiceAudio.addEventListener("ended", () => {
+    if (currentVoiceAudio === voiceAudio) {
+      currentVoiceAudio = null;
+      stopLive2DMouthSync?.();
     }
-    const voiceFile = chooseProfessorVoice(professorKey, files, eventName);
+  }, { once: true });
 
-    if (!voiceFile) {
-      return false;
-    }
-
-    const voiceAudio = new Audio(voiceFile);
-    voiceAudio.volume = getProfessorVoiceVolume(professorKey);
-    currentVoiceAudio = voiceAudio;
-    voiceAudio.addEventListener("ended", () => {
-      if (currentVoiceAudio === voiceAudio) {
-        currentVoiceAudio = null;
-        stopLive2DMouthSync?.();
-      }
-    }, { once: true });
-
-    try {
-      await voiceAudio.play();
+  return voiceAudio.play()
+    .then(() => {
       if (requestId !== currentPlayRequestId || currentVoiceAudio !== voiceAudio) {
         voiceAudio.pause();
         return false;
       }
+      voiceAudioUnlocked = true;
       if (typeof startLive2DMouthSync === "function") {
         startLive2DMouthSync(voiceAudio, professorKey);
       }
       return true;
-    } catch (error) {
+    })
+    .catch(() => {
       if (currentVoiceAudio === voiceAudio) {
         currentVoiceAudio = null;
       }
@@ -156,7 +217,25 @@ async function playProfessorVoice(professorKey, eventName = "") {
         stopLive2DMouthSync();
       }
       return false;
+    });
+}
+
+async function playProfessorVoice(professorKey, eventName = "") {
+  const requestId = currentPlayRequestId + 1;
+  stopProfessorVoice();
+  currentPlayRequestId = requestId;
+
+  try {
+    const immediateFiles = getProfessorVoiceFilesImmediately(professorKey);
+    if (immediateFiles) {
+      return startProfessorVoicePlayback(professorKey, eventName, immediateFiles, requestId);
     }
+
+    const files = await loadProfessorVoiceFiles(professorKey);
+    if (requestId !== currentPlayRequestId) {
+      return false;
+    }
+    return startProfessorVoicePlayback(professorKey, eventName, files, requestId);
   } catch (error) {
     if (typeof stopLive2DMouthSync === "function") {
       stopLive2DMouthSync();
@@ -174,8 +253,16 @@ function handleProfessorVoiceInstanceDetach(instance) {
 window.ProfessorVoiceController = Object.freeze({
   play: playProfessorVoice,
   stop: stopProfessorVoice,
+  unlock: unlockProfessorVoice,
   getVolume: () => getProfessorVoiceVolume("algorithm"),
   setVolume: setProfessorVoiceVolume,
+  getState: () => ({
+    volume: getProfessorVoiceVolume("algorithm"),
+    muted: Boolean(voiceAudioElement?.muted),
+    paused: voiceAudioElement ? voiceAudioElement.paused : true,
+    currentSrc: voiceAudioElement?.currentSrc || voiceAudioElement?.src || "",
+    unlocked: voiceAudioUnlocked
+  }),
   handleInstanceDetach: handleProfessorVoiceInstanceDetach
 });
 

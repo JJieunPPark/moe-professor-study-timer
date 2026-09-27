@@ -168,6 +168,7 @@ let currentTheme = loadTheme();
 let currentProfessorMode = loadProfessorMode(gameProgress);
 let isMockAnswerMode = loadMockAnswerMode();
 let currentLessonSession = createEmptyLessonSession();
+let pendingLessonExitAction = null;
 let activeRequestId = 0;
 let royalProgressAnimationFrame = null;
 let displayedRoyalProgress = gameProgress.royalProgressPercent;
@@ -335,8 +336,8 @@ function initializeApp() {
   document.addEventListener("professor-live2d-touch", handleLive2DRegionTouch);
   document.addEventListener("professor-live2d-parameter-reaction", handleLive2DParameterReaction);
   elements.enterQuestionButton?.addEventListener("click", openQuestionRoom);
-  elements.enterFocusRoomButton?.addEventListener("click", openFocusRoom);
-  elements.enterRecordRoomButton?.addEventListener("click", openRecordRoom);
+  elements.enterFocusRoomButton?.addEventListener("click", () => requestNavigationAfterLessonExit(openFocusRoom));
+  elements.enterRecordRoomButton?.addEventListener("click", () => requestNavigationAfterLessonExit(openRecordRoom));
   elements.wheelLobbyButton?.addEventListener("click", () => navigateModeRoulette("lobby"));
   elements.wheelQuestionButton?.addEventListener("click", () => navigateModeRoulette("question"));
   elements.wheelRecordButton?.addEventListener("click", () => navigateModeRoulette("record"));
@@ -802,7 +803,18 @@ function renderSubjectButtons() {
   });
 
   elements.subjectButtons.addEventListener("change", (event) => {
-    selectProfessor(event.target.value);
+    const nextProfessorKey = normalizeProfessorSelectionKey(event.target.value);
+    if (nextProfessorKey === currentProfessorKey) {
+      return;
+    }
+
+    if (hasActiveLessonSession()) {
+      elements.subjectButtons.value = currentProfessorKey;
+      requestLessonSessionExit(() => selectProfessor(nextProfessorKey));
+      return;
+    }
+
+    selectProfessor(nextProfessorKey);
   });
 }
 
@@ -899,62 +911,71 @@ function navigateModeRoulette(mode) {
   rouletteNavigationTimer = setTimeout(() => {
     document.body.classList.remove("mode-roulette-spinning");
 
-    if (nextMode === "focus") {
-      if (document.body.classList.contains("focus-mode-active")) {
-        closeFocusMode();
-      }
-      if (document.body.classList.contains("record-room-active")) {
-        closeRecordRoom();
-      }
-      if (!document.body.classList.contains("focus-room-active")) {
-        openFocusRoom();
-      }
+    if (nextMode !== "question" && hasActiveLessonSession()) {
+      requestLessonSessionExit(() => completeModeRouletteNavigation(nextMode));
       return;
     }
 
-    if (nextMode === "record") {
-      if (document.body.classList.contains("focus-mode-active")) {
-        closeFocusMode();
-      }
-      if (document.body.classList.contains("focus-room-active")) {
-        closeFocusRoom();
-      }
-      if (!document.body.classList.contains("record-room-active")) {
-        openRecordRoom();
-      }
-      return;
-    }
+    completeModeRouletteNavigation(nextMode);
+  }, 420);
+}
 
-    if (nextMode === "question") {
-      if (document.body.classList.contains("focus-room-active")) {
-        closeFocusRoom();
-      }
-      if (document.body.classList.contains("record-room-active")) {
-        closeRecordRoom();
-      }
-      if (!document.body.classList.contains("focus-mode-active")) {
-        openQuestionRoom();
-      }
-      return;
-    }
-
+function completeModeRouletteNavigation(nextMode) {
+  if (nextMode === "focus") {
     if (document.body.classList.contains("focus-mode-active")) {
-      requestCloseFocusMode();
-      return;
-    }
-    if (document.body.classList.contains("focus-room-active")) {
-      closeFocusRoom();
-      setWheelSelection("lobby");
-      return;
+      closeFocusMode();
     }
     if (document.body.classList.contains("record-room-active")) {
       closeRecordRoom();
-      setWheelSelection("lobby");
-      return;
     }
+    if (!document.body.classList.contains("focus-room-active")) {
+      openFocusRoom();
+    }
+    return;
+  }
 
-    enterLobbyModeFromWheel();
-  }, 420);
+  if (nextMode === "record") {
+    if (document.body.classList.contains("focus-mode-active")) {
+      closeFocusMode();
+    }
+    if (document.body.classList.contains("focus-room-active")) {
+      closeFocusRoom();
+    }
+    if (!document.body.classList.contains("record-room-active")) {
+      openRecordRoom();
+    }
+    return;
+  }
+
+  if (nextMode === "question") {
+    if (document.body.classList.contains("focus-room-active")) {
+      closeFocusRoom();
+    }
+    if (document.body.classList.contains("record-room-active")) {
+      closeRecordRoom();
+    }
+    if (!document.body.classList.contains("focus-mode-active")) {
+      openQuestionRoom();
+    }
+    return;
+  }
+
+  if (document.body.classList.contains("focus-mode-active")) {
+    requestCloseFocusMode();
+    return;
+  }
+  if (document.body.classList.contains("focus-room-active")) {
+    closeFocusRoom();
+    setWheelSelection("lobby");
+    return;
+  }
+  if (document.body.classList.contains("record-room-active")) {
+    closeRecordRoom();
+    setWheelSelection("lobby");
+    return;
+  }
+
+  enterLobbyModeFromWheel();
 }
 
 function enterLobbyModeFromWheel() {
@@ -1170,6 +1191,7 @@ function shouldRenderProfessorLive2D(professor, isRoyalMode) {
 
 async function handleLlmSubmit(event) {
   event.preventDefault();
+  window.ProfessorVoiceController?.unlock?.();
   const question = elements.llmInput.value.trim();
 
   if (!question) {
@@ -1183,6 +1205,7 @@ async function handleLlmSubmit(event) {
 
 async function handleFocusChatSubmit(event) {
   event.preventDefault();
+  window.ProfessorVoiceController?.unlock?.();
   const question = elements.focusChatInput.value.trim();
 
   if (!question) {
@@ -1512,12 +1535,16 @@ function openFocusMode() {
 }
 
 function closeFocusMode() {
+  resetUnderstandingExpression();
   document.body.classList.remove("focus-mode-active");
   elements.focusMode.setAttribute("aria-hidden", "true");
   setMainMode("lobby");
   setWheelSelection("lobby");
   setActiveScreen("home");
   applyProfessorMode("lobby");
+  if (PROFESSORS[currentProfessorKey]?.renderMode !== "live2d") {
+    setProfessorGif("idle");
+  }
   resumeIdleLineTimer();
 }
 
@@ -1576,6 +1603,24 @@ function setActiveScreen(screen) {
 }
 
 function requestCloseFocusMode() {
+  requestLessonSessionExit();
+}
+
+function hasActiveLessonSession() {
+  return Boolean(currentLessonSession.startedAt) || document.body.classList.contains("focus-mode-active");
+}
+
+function requestNavigationAfterLessonExit(navigate) {
+  if (!hasActiveLessonSession()) {
+    navigate();
+    return;
+  }
+
+  requestLessonSessionExit(navigate);
+}
+
+function requestLessonSessionExit(afterExit = null) {
+  pendingLessonExitAction = typeof afterExit === "function" ? afterExit : null;
   if (getCurrentLessonQuestionCount() === 0 && currentLessonSession.messages.length === 0) {
     finishFocusModeExit();
     return;
@@ -1666,7 +1711,11 @@ function discardCurrentLessonAndReturn() {
 }
 
 function cancelLessonSave() {
+  pendingLessonExitAction = null;
   hideLessonSaveModal();
+  if (document.body.classList.contains("focus-mode-active")) {
+    setWheelSelection("question");
+  }
 }
 
 function buildCurrentLessonSnapshot() {
@@ -1711,9 +1760,12 @@ function buildCurrentLessonSnapshot() {
 }
 
 function finishFocusModeExit() {
+  const afterExit = pendingLessonExitAction;
+  pendingLessonExitAction = null;
   hideLessonSaveModal();
   resetFocusModeSession();
   closeFocusMode();
+  afterExit?.();
 }
 
 function hideLessonSaveModal() {
