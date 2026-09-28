@@ -24,16 +24,19 @@
 
 ### 아카기 시스타무 / 赤城シスタム
 **Operating Systems**
+/images/aOS.png
 
 운영체제를 담당하는 교수 캐릭터입니다.
 
 ### 그라피쿠 이로하 / グラピク・イロハ
 **Computer Graphics**
+/images/aGraphic.png
 
 컴퓨터그래픽스를 담당하는 교수 캐릭터입니다.
 
 ### 아루고 리즈무 / アルゴ・リズム
 **Algorithms**
+/images/alrugo.png
 
 알고리즘을 담당하는 Live2D 교수 캐릭터입니다.
 
