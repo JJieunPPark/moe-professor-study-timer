@@ -1,6 +1,20 @@
 const MOCK_SERVER_CLOSED_MESSAGE = "아직 교수님 연구실 서버가 열리지 않았습니다. mock 답변을 표시합니다.";
 const MOCK_REPLY_DELAY_MIN = 500;
 const MOCK_REPLY_DELAY_MAX = 1200;
+const PUBLIC_API_ERROR_CODES = new Set([
+  "CREDIT_EXHAUSTED",
+  "RATE_LIMITED",
+  "UPSTREAM_RATE_LIMITED"
+]);
+
+function createPublicApiError(code, message, status) {
+  const error = new Error(message);
+  error.name = "ProfessorApiError";
+  error.code = code;
+  error.status = status;
+  error.publicMessage = message;
+  return error;
+}
 
 const mockReplies = {
   graphics: [
@@ -84,15 +98,22 @@ async function requestOpenAiProfessorReply({ professorKey, professor, question, 
     });
 
     if (!response.ok) {
+      let errorCode = "";
       let errorMessage = "";
       try {
         const errorData = await response.json();
-        errorMessage = errorData.error || "";
+        errorCode = typeof errorData.error === "string" ? errorData.error : "";
+        errorMessage = typeof errorData.message === "string" ? errorData.message : "";
       } catch (parseError) {
+        errorCode = "";
         errorMessage = "";
       }
 
-      throw new Error(errorMessage || `Chat server returned ${response.status}`);
+      if (PUBLIC_API_ERROR_CODES.has(errorCode)) {
+        throw createPublicApiError(errorCode, errorMessage || "AI 답변을 생성할 수 없습니다.", response.status);
+      }
+
+      throw new Error(errorMessage || errorCode || `Chat server returned ${response.status}`);
     }
 
     const data = await response.json();
@@ -101,6 +122,9 @@ async function requestOpenAiProfessorReply({ professorKey, professor, question, 
     }
     return { answer: createMockProfessorAnswer(professor, question), source: "fallback" };
   } catch (error) {
+    if (error?.name === "ProfessorApiError") {
+      throw error;
+    }
     console.warn("AI chat fallback:", error);
     return { answer: createMockProfessorAnswer(professor, question), source: "fallback" };
   }

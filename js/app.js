@@ -1374,8 +1374,11 @@ async function sendMessage(question, submitButton) {
     if (requestId !== activeRequestId) {
       return;
     }
-    console.warn("Question handling failed:", error);
-    const fallbackMessage = "아직 교수님 연구실 서버가 열리지 않았습니다. mock 답변을 표시합니다.";
+    if (!error?.publicMessage) {
+      console.warn("Question handling failed:", error);
+    }
+    const fallbackMessage = error?.publicMessage
+      || "아직 교수님 연구실 서버가 열리지 않았습니다. mock 답변을 표시합니다.";
     replacePendingProfessorMessage(fallbackMessage);
     recordLessonMessage("professor", fallbackMessage);
     setDialogueText(fallbackMessage);

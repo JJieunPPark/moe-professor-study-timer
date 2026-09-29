@@ -1,20 +1,33 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-dotenv.config({ override: true });
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const staticRoot = path.resolve(projectRoot, process.env.STATIC_DIR || ".");
+const CHAT_BODY_LIMIT = "16kb";
+const CHAT_QUESTION_MAX_LENGTH = 4000;
+const CHAT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const CHAT_RATE_LIMIT_MAX_REQUESTS = 15;
+const chatRateLimitBuckets = new Map();
 
-app.use(cors());
-app.use(express.json());
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store");
+  }
+  next();
+});
+app.use(express.json({ limit: CHAT_BODY_LIMIT }));
 app.use(express.static(staticRoot));
 app.use("/vendor/pixi.js", express.static(path.join(projectRoot, "node_modules", "pixi.js", "dist")));
 app.use("/vendor/naari-pixi-live2d-display", express.static(path.join(projectRoot, "node_modules", "@naari3", "pixi-live2d-display", "dist")));
@@ -24,14 +37,32 @@ app.use(
   express.static(path.join(projectRoot, "public", "live2d", "graphics"))
 );
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL
-});
-
 const professorKeys = new Set(["graphics", "database", "os", "algorithm"]);
+const professorMetadata = Object.freeze({
+  graphics: { name: "그라피쿠 이로하", subjectLabel: "컴퓨터그래픽스" },
+  database: { name: "시라토리 데에타", subjectLabel: "데이터베이스" },
+  os: { name: "아카기 시스타무", subjectLabel: "운영체제" },
+  algorithm: { name: "아루고 리즈무", subjectLabel: "알고리즘" }
+});
 const promptCache = new Map();
 const COMMON_PROMPT_KEY = "__common__";
+let openAiClient = null;
+
+function getOpenAiClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    return null;
+  }
+
+  if (!openAiClient) {
+    openAiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL,
+      maxRetries: 0
+    });
+  }
+
+  return openAiClient;
+}
 
 function normalizeProfessorKey(professorKey) {
   if (professorKey === "programming") {
@@ -39,6 +70,70 @@ function normalizeProfessorKey(professorKey) {
   }
 
   return professorKeys.has(professorKey) ? professorKey : "database";
+}
+
+function getRequestedProfessorKey(professorKey) {
+  const normalizedKey = professorKey === "programming" ? "algorithm" : professorKey;
+  return typeof normalizedKey === "string" && professorKeys.has(normalizedKey)
+    ? normalizedKey
+    : "";
+}
+
+function getClientAddress(req) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function enforceChatRateLimit(req, res, next) {
+  const now = Date.now();
+  const clientAddress = getClientAddress(req);
+  const currentBucket = chatRateLimitBuckets.get(clientAddress);
+  const bucket = !currentBucket || currentBucket.resetAt <= now
+    ? { count: 0, resetAt: now + CHAT_RATE_LIMIT_WINDOW_MS }
+    : currentBucket;
+
+  bucket.count += 1;
+  chatRateLimitBuckets.set(clientAddress, bucket);
+
+  if (chatRateLimitBuckets.size > 1000) {
+    for (const [address, candidate] of chatRateLimitBuckets) {
+      if (candidate.resetAt <= now) {
+        chatRateLimitBuckets.delete(address);
+      }
+    }
+  }
+
+  res.setHeader("RateLimit-Limit", String(CHAT_RATE_LIMIT_MAX_REQUESTS));
+  res.setHeader("RateLimit-Remaining", String(Math.max(CHAT_RATE_LIMIT_MAX_REQUESTS - bucket.count, 0)));
+  res.setHeader("RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
+
+  if (bucket.count > CHAT_RATE_LIMIT_MAX_REQUESTS) {
+    res.setHeader("Retry-After", String(Math.max(Math.ceil((bucket.resetAt - now) / 1000), 1)));
+    return res.status(429).json({
+      error: "RATE_LIMITED",
+      message: "잠시 후 다시 질문해 주세요."
+    });
+  }
+
+  return next();
+}
+
+function getUpstreamStatus(error) {
+  const status = Number(error?.status || error?.response?.status);
+  return Number.isInteger(status) ? status : 0;
+}
+
+function logChatFailure(error, upstreamStatus) {
+  const safeCode = typeof error?.code === "string" ? error.code.slice(0, 80) : "";
+  console.error("Chat upstream request failed", {
+    status: upstreamStatus || undefined,
+    code: safeCode || undefined,
+    type: error?.name || "Error"
+  });
 }
 
 function loadPromptTemplate(professorKey) {
@@ -198,26 +293,49 @@ app.get("/api/opening-sounds", async (req, res) => {
   return res.json({ sounds });
 });
 
-app.post("/api/chat", async (req, res) => {
-  const {
-    professorKey,
-    professorName,
-    subjectLabel,
-    question,
-    studentProfile
-  } = req.body || {};
+app.all("/api/chat", (req, res, next) => {
+  if (req.method === "POST") {
+    return next();
+  }
 
-  if (!professorKey || !professorName || !subjectLabel || !question) {
+  res.setHeader("Allow", "POST");
+  return res.status(405).json({
+    error: "METHOD_NOT_ALLOWED",
+    message: "POST 요청만 사용할 수 있습니다."
+  });
+});
+
+app.post("/api/chat", enforceChatRateLimit, async (req, res) => {
+  const requestedProfessorKey = getRequestedProfessorKey(req.body?.professorKey);
+  const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
+  const studentProfile = req.body?.studentProfile;
+
+  if (!requestedProfessorKey || !question || question.length > CHAT_QUESTION_MAX_LENGTH) {
     return res.status(400).json({
-      error: "professorKey, professorName, subjectLabel, question are required."
+      error: "INVALID_REQUEST",
+      message: `교수와 질문을 확인해 주세요. 질문은 ${CHAT_QUESTION_MAX_LENGTH}자까지 입력할 수 있습니다.`
     });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  let client;
+  try {
+    client = getOpenAiClient();
+  } catch (error) {
+    logChatFailure(error, 0);
     return res.status(500).json({
-      error: "OpenAI API key is not configured on the server."
+      error: "SERVER_NOT_CONFIGURED",
+      message: "현재 AI 답변 서비스를 사용할 수 없습니다."
     });
   }
+
+  if (!client) {
+    return res.status(500).json({
+      error: "SERVER_NOT_CONFIGURED",
+      message: "현재 AI 답변 서비스를 사용할 수 없습니다."
+    });
+  }
+
+  const { name: professorName, subjectLabel } = professorMetadata[requestedProfessorKey];
 
   try {
     const response = await client.chat.completions.create({
@@ -226,7 +344,7 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content: createFullSystemPrompt({
-            professorKey,
+            professorKey: requestedProfessorKey,
             professorName,
             subjectLabel,
             studentProfile
@@ -246,18 +364,53 @@ app.post("/api/chat", async (req, res) => {
         "답변을 생성하지 못했습니다. 질문을 조금 더 구체적으로 바꿔주세요."
     });
   } catch (error) {
-    console.error("========== ERROR ==========");
-    console.error(error);
+    const upstreamStatus = getUpstreamStatus(error);
+    logChatFailure(error, upstreamStatus);
 
-    if (error.response) {
-      console.error(error.response.status);
-      console.error(error.response.data);
+    if (upstreamStatus === 402) {
+      return res.status(402).json({
+        error: "CREDIT_EXHAUSTED",
+        message: "현재 AI 답변 생성 한도를 모두 사용했습니다."
+      });
+    }
+
+    if (upstreamStatus === 429) {
+      return res.status(429).json({
+        error: "UPSTREAM_RATE_LIMITED",
+        message: "AI 요청이 많습니다. 잠시 후 다시 시도해 주세요."
+      });
     }
 
     return res.status(500).json({
-      error: "교수님 연구실 서버에서 답변을 생성하지 못했습니다."
+      error: "CHAT_FAILED",
+      message: "교수님 연구실 서버에서 답변을 생성하지 못했습니다."
     });
   }
+});
+
+app.use((error, req, res, next) => {
+  if (error?.type === "entity.too.large") {
+    return res.status(413).json({
+      error: "PAYLOAD_TOO_LARGE",
+      message: "요청 내용이 너무 큽니다. 질문을 짧게 줄여 주세요."
+    });
+  }
+
+  if (error instanceof SyntaxError && error.status === 400 && "body" in error) {
+    return res.status(400).json({
+      error: "INVALID_JSON",
+      message: "요청 형식을 확인해 주세요."
+    });
+  }
+
+  console.error("Unhandled server request error", {
+    status: Number(error?.status) || undefined,
+    type: error?.name || "Error"
+  });
+  return res.status(500).json({
+    error: "INTERNAL_ERROR",
+    message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+  });
 });
 
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
